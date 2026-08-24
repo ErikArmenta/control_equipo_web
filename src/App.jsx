@@ -15,7 +15,7 @@ import { createClient } from "@supabase/supabase-js";
 // No pongas aquí la "service_role" key: esa nunca debe usarse en código que
 // corre en el navegador.
 // ---------------------------------------------------------------------------
-const SUPABASE_URL = "https://TU-PROYECTO.supabase.co";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = "TU-ANON-KEY-PUBLICA";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
