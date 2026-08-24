@@ -1,0 +1,120 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+/* TTS_Traking Neumorphic Theme */
+:root {
+  --bg: #E0E5EC;
+  --panel: #E0E5EC;
+  --panel-2: #E0E5EC;
+  --border: rgba(255, 255, 255, 0.2);
+  --text: #333333;
+  --dim: #666666;
+  --teal: #1C8C87;
+  --teal-dark: #0F5F5B;
+  --orange: #E8622C;
+  --green: #198754;
+  
+  --shadow-light: #ffffff;
+  --shadow-dark: #a3b1c6;
+  --neumorphic-shadow: 9px 9px 16px rgb(163,177,198,0.6), -9px -9px 16px rgba(255,255,255, 0.5);
+  --neumorphic-shadow-inset: inset 6px 6px 10px 0 rgba(163,177,198, 0.7), inset -6px -6px 10px 0 rgba(255,255,255, 0.8);
+}
+
+.fleet-app { 
+  font-family: 'Inter', system-ui, sans-serif; 
+  background: var(--bg); 
+  color: var(--text); 
+  min-height: 100vh; 
+  width: 100%; 
+}
+
+.fleet-app * { box-sizing: border-box; }
+.fleet-app h1, .fleet-app h2, .fleet-app h3, .fleet-app h4 { 
+  font-family: 'Oswald', sans-serif; 
+  text-transform: uppercase; 
+  letter-spacing: 0.03em; 
+  margin: 0; 
+}
+.mono { font-family: 'IBM Plex Mono', monospace; }
+
+/* Neumorphic Cards */
+.unit-card, .sidebar, .login-card, .detail-grid, .mtto-panel {
+  background: var(--bg);
+  border: none;
+  border-radius: 16px;
+  box-shadow: var(--neumorphic-shadow);
+  margin-bottom: 20px;
+}
+
+/* Neumorphic Buttons */
+.btn-primary, .btn-ghost, .role-btn, .icon-btn, .unit-card-click {
+  background: var(--bg);
+  border: none;
+  border-radius: 12px;
+  box-shadow: var(--neumorphic-shadow);
+  color: var(--text);
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-primary:active, .btn-ghost:active, .role-btn:active, .icon-btn:active, .unit-card-click:active {
+  box-shadow: var(--neumorphic-shadow-inset);
+}
+
+.btn-primary {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+/* Specific component resets */
+.shell { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; flex-shrink: 0; padding: 20px 14px; position: sticky; top: 0; height: 100vh; margin: 0; border-radius: 0; box-shadow: 4px 0 10px rgba(163,177,198,0.4); }
+.brand { display: flex; align-items: center; padding: 6px 8px 24px; }
+.brand img { height: 32px; width: auto; object-fit: contain; }
+.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; font-size: 14px; color: var(--dim); cursor: pointer; border: none; background: transparent; transition: all 0.2s ease; box-shadow: none; font-weight: 500; font-family: inherit; width: 100%; text-align: left; }
+.nav-item:hover { color: var(--teal); background: rgba(28,140,135,0.08); }
+.nav-item-active { background: var(--bg); color: var(--teal); font-weight: 600; box-shadow: var(--neumorphic-shadow-inset); }
+
+.main { flex: 1; padding: 24px 32px 80px; overflow-x: hidden; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
+.page-header h1 { font-size: 28px; color: var(--text); }
+.page-eyebrow { color: var(--teal); font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px; }
+
+/* Grid Layouts */
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+.kpi-card { background: var(--bg); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--neumorphic-shadow); }
+.kpi-label { font-size: 12px; color: var(--dim); font-weight: 500; }
+.kpi-val { font-size: 26px; font-weight: 700; color: var(--text); }
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+
+/* Inputs and Forms */
+.search-wrap { position: relative; margin-bottom: 20px; }
+.search-input { width: 100%; padding: 12px 16px 12px 42px; border: none; border-radius: 12px; font-size: 14px; color: var(--text); font-family: inherit; background: var(--bg); box-shadow: var(--neumorphic-shadow-inset); outline: none; }
+.search-icon { position: absolute; left: 14px; top: 12px; color: var(--dim); }
+.input { width: 100%; padding: 9px 12px; border: none; border-radius: 8px; font-size: 13px; font-family: inherit; background: var(--bg); color: var(--text); box-shadow: var(--neumorphic-shadow-inset); outline: none; }
+
+/* Tables */
+.table-wrap { background: var(--bg); border-radius: 16px; box-shadow: var(--neumorphic-shadow); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th { padding: 12px 16px; font-size: 11px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+td { padding: 14px 16px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(28,140,135,0.04); }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+.badge-ok { background: rgba(25,135,84,0.15); color: var(--green); }
+.badge-warn { background: rgba(232,98,44,0.15); color: var(--orange); }
+.badge-error { background: rgba(200,50,50,0.15); color: #C83232; }
+.badge-neutral { background: rgba(102,102,102,0.15); color: var(--dim); }
+
+.modal-backdrop { position: fixed; inset: 0; background: rgba(51,51,51,0.55); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 50; overflow-y: auto; }
+.modal { background: var(--bg); border: none; border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; box-shadow: var(--neumorphic-shadow); }
+
+@media (max-width:760px) {
+  .shell { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; align-items: center; padding: 12px 14px; box-shadow: none; border-bottom: 1px solid var(--border); }
+  .main { padding: 18px 16px 60px; }
+  .grid-4, .grid-2, .kpi-row { grid-template-columns: 1fr; }
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+}
