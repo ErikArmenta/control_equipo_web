@@ -728,7 +728,7 @@ function Sidebar({ view, setView, session, onLogout, alertCount, catalogoAlertCo
       </nav>
       <div className="sidebar-footer">
         <div className="user-chip"><User size={15} /><div><div className="user-name">{session.nombre}</div><div className="user-role">{session.role}</div></div></div>
-        <button className="nav-item" onClick={onLogout}><LogOut size={16} /> <span>Salir</span></button>
+        <button className="nav-item" onClick={() => window.FlutterChannel ? window.FlutterChannel.postMessage('goBack') : window.history.back()}><ArrowLeft size={16} /> <span>Volver a App</span></button>
       </div>
     </aside>
   );
