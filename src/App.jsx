@@ -1023,7 +1023,7 @@ function Dashboard({ units, alerts, mttoAlerts, tireAlerts, dieselAlerts, setVie
         <div className="kpi-card"><div className="kpi-n">{units.length}</div><div className="kpi-l">Unidades totales</div></div>
         <div className="kpi-card"><div className="kpi-n">{units.filter(u => u.estatus === "Activo").length}</div><div className="kpi-l">Activas</div></div>
         <div className="kpi-card"><div className="kpi-n">{units.filter(u => u.estatus === "En taller").length}</div><div className="kpi-l">En taller</div></div>
-        <div className="kpi-card kpi-card-warn"><div className="kpi-n">{mttoAlerts.length}</div><div className="kpi-l">Pendientes de mantenimiento</div></div>
+
         <div className="kpi-card kpi-card-warn"><div className="kpi-n">{alerts.filter(a => a.urgency !== "proximo").length}</div><div className="kpi-l">Alertas urgentes</div></div>
       </div>
 
@@ -1068,26 +1068,6 @@ function Dashboard({ units, alerts, mttoAlerts, tireAlerts, dieselAlerts, setVie
         </div>
       </div>
 
-      <div className="panel">
-        <div className="panel-head">
-          <h3><Wrench size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} /> Pendientes de mantenimiento preventivo</h3>
-          <button className="link-btn" onClick={() => setView("alertas")}>Ver todos <ChevronRight size={14} /></button>
-        </div>
-        {topMtto.length === 0 ? (
-          <div className="empty">Ninguna unidad supera las {MTTO_INTERVALO.toLocaleString("es-MX")} millas desde su último mantenimiento.</div>
-        ) : (
-          <div className="alert-list">
-            {topMtto.map((m, i) => (
-              <button className="alert-row" key={i} onClick={() => setSelected(m.unit)}>
-                <Badge tone="mtto">Pendiente</Badge>
-                <span className="alert-unit mono">{m.unit.numeroEconomico}</span>
-                <span className="alert-field">{m.diff.toLocaleString("es-MX")} mi desde el último servicio</span>
-                <span className="alert-date">últ. {new Date(m.ultimo.fecha).toLocaleDateString("es-MX")}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
 
       <div className="panel">
         <div className="panel-head">
@@ -2301,7 +2281,7 @@ function UnitModal({ unit, role, onClose, onUpdate, onDelete, hideMaintenance })
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(unit);
   const [tab, setTab] = useState("detalle");
-  const showMantenimiento = !hideMaintenance;
+  const showMantenimiento = false;
   const showInspeccion = !hideMaintenance;
 
   const saveQuick = () => onUpdate({ estatus, ubicacion, operador });
