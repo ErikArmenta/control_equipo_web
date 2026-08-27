@@ -499,7 +499,12 @@ function StatusDot({ estatus }) {
 const MTTO_ESTATUS = "PENDIENTE DE REALIZAR MANTENIMIENTO";
 
 export default function App() {
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const nombre = params.get("user") || "Operador";
+    const role = params.get("role") || "Operador";
+    return { nombre, role };
+  });
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("dashboard");
@@ -519,30 +524,43 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [toast, setToast] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("fleet_units")
-          .select("*")
-          .order("id", { ascending: true });
-        if (error) throw error;
-        if (data && data.length > 0) {
-          setUnits(backfillFromSeed(data.map(rowToUnit)));
-        } else {
-          // Tabla vacía (primera conexión): la sembramos con las unidades de ejemplo.
-          const { error: seedError } = await supabase.from("fleet_units").insert(SEED_UNITS.map(unitToRow));
-          if (seedError) throw seedError;
-          setUnits(SEED_UNITS);
-        }
-      } catch (e) {
-        console.error("Error cargando unidades desde Supabase:", e);
+  const loadData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("fleet_units")
+        .select("*")
+        .order("id", { ascending: true });
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setUnits(backfillFromSeed(data.map(rowToUnit)));
+      } else {
+        // Tabla vacía (primera conexión): la sembramos con las unidades de ejemplo.
+        const { error: seedError } = await supabase.from("fleet_units").insert(SEED_UNITS.map(unitToRow));
+        if (seedError) throw seedError;
         setUnits(SEED_UNITS);
-        showToast("No se pudo conectar a Supabase. Revisa SUPABASE_URL/SUPABASE_ANON_KEY.", "urgente");
-      } finally {
-        setLoading(false);
       }
-    })();
+    } catch (e) {
+      console.error("Error cargando unidades desde Supabase:", e);
+      setUnits(SEED_UNITS);
+      showToast("No se pudo conectar a Supabase. Revisa SUPABASE_URL/SUPABASE_ANON_KEY.", "urgente");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+
+    const channel = supabase
+      .channel('public:fleet_units')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fleet_units' }, (payload) => {
+        loadData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // `successMsg` se muestra solo hasta que Supabase confirma que el guardado
@@ -716,7 +734,6 @@ export default function App() {
     [units]
   );
 
-  if (!session) return <Login onEnter={setSession} />;
 
   return (
     <div className="fleet-app">
@@ -788,35 +805,6 @@ export default function App() {
   );
 }
 
-function Login({ onEnter }) {
-  const [nombre, setNombre] = useState("");
-  const [role, setRole] = useState("Admin");
-  return (
-    <div className="fleet-app">
-      <style>{CSS}</style>
-      <div className="login-screen">
-        <div className="login-card">
-          <div className="login-mark"><img src={LOGO_TECMA} alt="Tecma Transportation Services" /></div>
-          <div className="login-eyebrow">Tecma Transportation Services</div>
-          <h1>Catálogo de unidades</h1>
-          <p className="login-sub">Consulta, actualiza y da seguimiento a vencimientos de tractores, dry vans y flatbeds.</p>
-          <label className="field-label">Nombre</label>
-          <input className="input" placeholder="Tu nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-          <label className="field-label">Rol</label>
-          <div className="role-toggle">
-            {["Admin", "Operador"].map((r) => (
-              <button key={r} className={`role-btn ${role === r ? "role-btn-active" : ""}`} onClick={() => setRole(r)}>{r}</button>
-            ))}
-          </div>
-          <button className="btn btn-primary btn-block" disabled={!nombre.trim()} onClick={() => onEnter({ nombre: nombre.trim(), role })}>
-            Entrar <ChevronRight size={16} />
-          </button>
-          <p className="login-note">Prototipo funcional — el ingreso por nombre/rol no sustituye un inicio de sesión seguro real.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function GlobalSearch({ units, onSelectGlobal }) {
   const [q, setQ] = useState("");
@@ -3457,17 +3445,7 @@ const CSS = `
 .field{ display:flex; flex-direction:column; gap:4px; }
 .field-full{ grid-column:1 / -1; }
 
-.login-screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; background:radial-gradient(circle at 30% 20%, #FFFFFF, var(--bg)); }
-.login-card{ background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:34px 30px; width:100%; max-width:380px; }
-.login-mark{ height:44px; display:flex; align-items:center; justify-content:flex-start; margin-bottom:18px; }
-.login-mark img{ height:100%; width:auto; object-fit:contain; }
-.login-eyebrow{ color:var(--teal); font-size:11px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; }
-.login-card h1{ font-size:24px; margin:6px 0 8px; color:var(--text); }
-.login-sub{ color:var(--dim); font-size:13px; margin-bottom:20px; line-height:1.5; }
-.role-toggle{ display:flex; gap:8px; margin-bottom:20px; }
-.role-btn{ flex:1; background:var(--panel-2); border:1px solid var(--border); color:var(--dim); padding:9px; border-radius:8px; cursor:pointer; font-size:13px; font-family:inherit; }
-.role-btn-active{ border-color:var(--teal); color:var(--teal); font-weight:600; }
-.login-note{ color:var(--dim); font-size:11px; margin-top:16px; line-height:1.5; }
+
 
 .toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--border); padding:10px 16px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:8px; z-index:60; box-shadow:0 4px 16px rgba(51,51,51,0.15); }
 .toast-ok{ border-color:rgba(25,135,84,0.4); color:var(--green); }
