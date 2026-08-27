@@ -650,6 +650,19 @@ export default function App() {
         const urgency = urgencyOf(days);
         if (urgency !== "ok") list.push({ unit: u, label, field, days, urgency, date: u[field] });
       });
+      
+      // Inspección fallida alerta (para que bote a Mantenimiento)
+      const ultInsp = u.inspecciones && u.inspecciones[0];
+      if (ultInsp && ultInsp.estado === "Con fallas") {
+        list.push({
+          unit: u,
+          label: `Inspección fallida: ${ultInsp.notas || 'Requiere revisión'}`,
+          field: "inspeccion_fallida",
+          days: -1, // always urgent
+          urgency: "urgente",
+          date: ultInsp.fecha
+        });
+      }
     });
     return list.sort((a, b) => a.days - b.days);
   }, [units]);
