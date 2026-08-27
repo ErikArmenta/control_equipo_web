@@ -523,7 +523,7 @@ export default function App() {
     (async () => {
       try {
         const { data, error } = await supabase
-          .from("units")
+          .from("fleet_units")
           .select("*")
           .order("id", { ascending: true });
         if (error) throw error;
@@ -531,7 +531,7 @@ export default function App() {
           setUnits(backfillFromSeed(data.map(rowToUnit)));
         } else {
           // Tabla vacía (primera conexión): la sembramos con las unidades de ejemplo.
-          const { error: seedError } = await supabase.from("units").insert(SEED_UNITS.map(unitToRow));
+          const { error: seedError } = await supabase.from("fleet_units").insert(SEED_UNITS.map(unitToRow));
           if (seedError) throw seedError;
           setUnits(SEED_UNITS);
         }
@@ -556,12 +556,12 @@ export default function App() {
     setUnits(next);
     try {
       if (removedIds.length > 0) {
-        const { error: delError } = await supabase.from("units").delete().in("id", removedIds);
+        const { error: delError } = await supabase.from("fleet_units").delete().in("id", removedIds);
         if (delError) throw delError;
       }
       if (next.length > 0) {
         const { error: upsertError } = await supabase
-          .from("units")
+          .from("fleet_units")
           .upsert(next.map(unitToRow), { onConflict: "id" });
         if (upsertError) throw upsertError;
       }
