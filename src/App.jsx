@@ -2291,6 +2291,7 @@ function UnitModal({ unit, role, onClose, onUpdate, onDelete, hideMaintenance })
   const [ubicacion, setUbicacion] = useState(unit.ubicacion);
   const [operador, setOperador] = useState(unit.operador);
   const isAdmin = role === "Admin";
+  const canEdit = isAdmin || role === "Operacion admin" || role === "Coordinador admin" || role === "Coordinador";
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(unit);
   const [tab, setTab] = useState("detalle");
@@ -2435,12 +2436,14 @@ function UnitModal({ unit, role, onClose, onUpdate, onDelete, hideMaintenance })
               </>
             )}
 
-            {isAdmin && (
-              <div className="modal-actions">
+            <div className="modal-actions">
+              {canEdit && (
                 <button className="btn btn-ghost" onClick={() => setEditing(true)}><Pencil size={14} /> Editar todos los datos</button>
+              )}
+              {isAdmin && (
                 <button className="btn btn-danger" onClick={onDelete}><Trash2 size={14} /> Eliminar unidad</button>
-              </div>
-            )}
+              )}
+            </div>
           </>
         ) : (
           <EditForm form={form} setForm={setForm} onCancel={() => setEditing(false)} onSave={saveFull} />
