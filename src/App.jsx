@@ -788,6 +788,9 @@ export default function App() {
   );
 
 
+  const appRoleLower = (session.role || "").toLowerCase();
+  const canAddUnit = session.role === "Admin" || appRoleLower.includes("operacion admin") || appRoleLower.includes("coordinador");
+
   return (
     <div className="fleet-app">
       <style>{CSS}</style>
@@ -824,7 +827,7 @@ export default function App() {
               onSelect={setSelected}
               onAdd={() => setShowAdd(true)}
               onRequest={requestUnit}
-              canAdd={session.role === "Admin"}
+              canAdd={canAddUnit}
             />
           ) : view === "seguros" ? (
             <SegurosView
@@ -2441,7 +2444,7 @@ function UnitModal({ unit, role, onClose, onUpdate, onDelete, hideMaintenance })
               {canEdit && (
                 <button className="btn btn-ghost" onClick={() => setEditing(true)}><Pencil size={14} /> Editar todos los datos</button>
               )}
-              {isAdmin && (
+              {canEdit && (
                 <button className="btn btn-danger" onClick={onDelete}><Trash2 size={14} /> Eliminar unidad</button>
               )}
             </div>
