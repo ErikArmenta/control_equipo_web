@@ -2291,7 +2291,8 @@ function UnitModal({ unit, role, onClose, onUpdate, onDelete, hideMaintenance })
   const [ubicacion, setUbicacion] = useState(unit.ubicacion);
   const [operador, setOperador] = useState(unit.operador);
   const isAdmin = role === "Admin";
-  const canEdit = isAdmin || role === "Operacion admin" || role === "Coordinador admin" || role === "Coordinador";
+  const roleLower = (role || "").toLowerCase();
+  const canEdit = isAdmin || roleLower.includes("operacion admin") || roleLower.includes("coordinador");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(unit);
   const [tab, setTab] = useState("detalle");
