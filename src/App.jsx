@@ -3039,7 +3039,7 @@ function DocumentSection({ unit, onUpdate }) {
       const ext = file.name.split('.').pop();
       const uniqueName = `fleet_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage.from('documentos').upload(uniqueName, file);
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('documents_bucket').upload(uniqueName, file);
       if (uploadError) throw uploadError;
 
       const { data: docData, error: dbError } = await supabase.from('documents').insert({
@@ -3071,7 +3071,7 @@ function DocumentSection({ unit, onUpdate }) {
     onUpdate({ documentos: documentos.filter((_, i) => i !== idx) });
   };
 
-  const getDocUrl = (d) => d.dataUrl || supabase.storage.from('documentos').getPublicUrl(d.file_url)?.data?.publicUrl || "#";
+  const getDocUrl = (d) => d.dataUrl || supabase.storage.from('documents_bucket').getPublicUrl(d.file_url)?.data?.publicUrl || "#";
 
   return (
     <>
