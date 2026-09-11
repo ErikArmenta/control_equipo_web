@@ -3060,7 +3060,7 @@ function DocumentSection({ unit, onUpdate }) {
       };
       onUpdate({ documentos: [entry, ...documentos] });
     } catch(err) {
-      setError("Error al subir el archivo.");
+      setError(`Error al subir: ${err.message || err.error || JSON.stringify(err)}`);
       console.error(err);
     } finally {
       if (inputRef.current) inputRef.current.value = "";
