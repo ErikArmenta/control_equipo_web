@@ -3060,7 +3060,7 @@ function DocumentSection({ unit, userId, onUpdate }) {
         name: file.name,
         file_url: uploadData.path,
         status: 'Activo',
-        uploaded_by: userId || '00000000-0000-0000-0000-000000000000',
+        uploaded_by: userId || null,
         uploaded_at: new Date().toISOString()
       }).select('id').single();
 
