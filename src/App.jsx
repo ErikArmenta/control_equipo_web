@@ -3046,7 +3046,7 @@ function DocumentSection({ unit, userId, onUpdate }) {
         name: file.name,
         file_url: uploadData.path,
         status: 'Activo',
-        uploaded_by: userId || null,
+        uploaded_by: userId || '00000000-0000-0000-0000-000000000000',
         uploaded_at: new Date().toISOString()
       }).select('id').single();
 
@@ -3054,6 +3054,7 @@ function DocumentSection({ unit, userId, onUpdate }) {
 
       const entry = {
         document_id: docData.id,
+        file_url: uploadData.path,
         nombre: file.name,
         tipo,
         fecha: new Date().toISOString(),
