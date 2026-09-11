@@ -579,9 +579,7 @@ export default function App() {
         if (delError) throw delError;
       }
       if (next.length > 0) {
-        const { error: upsertError } = await supabase
-          .from("fleet_units")
-          .upsert(next.map(unitToRow), { onConflict: "id" });
+        const { error: upsertError } = await supabase.rpc("upsert_fleet_units", { units_payload: next.map(unitToRow) });
         if (upsertError) throw upsertError;
       }
       showToast(successMsg, successTone);
@@ -3028,7 +3026,7 @@ function DocumentSection({ unit, onUpdate }) {
   const [error, setError] = useState("");
   const inputRef = useRef(null);
 
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     setError("");
@@ -3037,24 +3035,43 @@ function DocumentSection({ unit, onUpdate }) {
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
+    try {
+      const ext = file.name.split('.').pop();
+      const uniqueName = `fleet_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('documentos').upload(uniqueName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: docData, error: dbError } = await supabase.from('documents').insert({
+        name: file.name,
+        file_url: uploadData.path,
+        status: 'Activo',
+        uploaded_by: 'Control de Equipo',
+        uploaded_at: new Date().toISOString()
+      }).select('id').single();
+
+      if (dbError) throw dbError;
+
       const entry = {
+        document_id: docData.id,
         nombre: file.name,
         tipo,
-        dataUrl: reader.result,
         fecha: new Date().toISOString(),
       };
       onUpdate({ documentos: [entry, ...documentos] });
+    } catch(err) {
+      setError("Error al subir el archivo.");
+      console.error(err);
+    } finally {
       if (inputRef.current) inputRef.current.value = "";
-    };
-    reader.onerror = () => setError("No se pudo leer el archivo.");
-    reader.readAsDataURL(file);
+    }
   };
 
   const removeDoc = (idx) => {
     onUpdate({ documentos: documentos.filter((_, i) => i !== idx) });
   };
+
+  const getDocUrl = (d) => d.dataUrl || supabase.storage.from('documentos').getPublicUrl(d.file_url)?.data?.publicUrl || "#";
 
   return (
     <>
@@ -3073,7 +3090,7 @@ function DocumentSection({ unit, onUpdate }) {
           {documentos.map((d, i) => (
             <div className="history-row doc-row" key={i}>
               <span className="history-field">{d.tipo}</span>
-              <a href={d.dataUrl} target="_blank" rel="noopener noreferrer">{d.nombre}</a>
+              <a href={getDocUrl(d)} target="_blank" rel="noopener noreferrer">{d.nombre}</a>
               <span className="history-meta">{new Date(d.fecha).toLocaleDateString("es-MX")}</span>
               <button className="icon-btn" onClick={() => removeDoc(i)}><Trash2 size={14} /></button>
             </div>
