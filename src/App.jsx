@@ -3056,9 +3056,12 @@ function DocumentSection({ unit, userId, onUpdate }) {
       const { data: uploadData, error: uploadError } = await supabase.storage.from('documents_bucket').upload(`control_equipo/${uniqueName}`, file);
       if (uploadError) throw uploadError;
 
+      const publicUrlResponse = supabase.storage.from('documents_bucket').getPublicUrl(`control_equipo/${uniqueName}`);
+      const fullUrl = publicUrlResponse.data.publicUrl;
+
       const { data: docData, error: dbError } = await supabase.from('documents').insert({
         name: file.name,
-        file_url: uploadData.path,
+        file_url: fullUrl,
         status: 'Activo',
         uploaded_by: userId || null,
         uploaded_at: new Date().toISOString()
@@ -3068,7 +3071,7 @@ function DocumentSection({ unit, userId, onUpdate }) {
 
       const entry = {
         document_id: docData.id,
-        file_url: uploadData.path,
+        file_url: fullUrl,
         nombre: file.name,
         tipo,
         fecha: new Date().toISOString(),
@@ -3089,7 +3092,10 @@ function DocumentSection({ unit, userId, onUpdate }) {
   const getDocUrl = (d) => {
     if (!d) return "#";
     if (d.dataUrl) return d.dataUrl;
-    if (d.file_url) return supabase.storage.from('documents_bucket').getPublicUrl(d.file_url)?.data?.publicUrl || "#";
+    if (d.file_url) {
+      if (d.file_url.startsWith("http")) return d.file_url;
+      return supabase.storage.from('documents_bucket').getPublicUrl(d.file_url)?.data?.publicUrl || "#";
+    }
     return "#";
   };
 
