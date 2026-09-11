@@ -462,14 +462,28 @@ const UNIT_JSON_FIELDS = [
 ];
 
 // Unidad (forma de la app) -> fila lista para insert/upsert en Supabase.
+function deepCleanStrings(obj) {
+  if (Array.isArray(obj)) {
+    return obj.map(deepCleanStrings);
+  } else if (obj !== null && typeof obj === "object") {
+    const cleaned = {};
+    for (const key in obj) {
+      const val = obj[key];
+      cleaned[key] = (typeof val === "string" && val.trim() === "") ? null : deepCleanStrings(val);
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 function unitToRow(unit) {
   const row = { id: unit.id, odometro: odometroActualDe(unit) };
   UNIT_SCALAR_FIELDS.forEach(([camel, snake]) => {
     const v = unit[camel];
-    row[snake] = v === undefined || v === "" ? null : v;
+    row[snake] = v === undefined || (typeof v === "string" && v.trim() === "") ? null : v;
   });
   UNIT_JSON_FIELDS.forEach(([camel, snake]) => {
-    row[snake] = unit[camel] || [];
+    row[snake] = deepCleanStrings(unit[camel]) || [];
   });
   return row;
 }
@@ -585,7 +599,7 @@ export default function App() {
       showToast(successMsg, successTone);
     } catch (e) {
       console.error("Error guardando en Supabase:", e);
-      showToast("No se pudo guardar en Supabase. Intenta de nuevo.", "urgente");
+      showToast(`No se pudo guardar: ${e.message || e.error || JSON.stringify(e)}`, "urgente");
     }
   };
 
@@ -3072,7 +3086,12 @@ function DocumentSection({ unit, userId, onUpdate }) {
     onUpdate({ documentos: documentos.filter((_, i) => i !== idx) });
   };
 
-  const getDocUrl = (d) => d.dataUrl || supabase.storage.from('documents_bucket').getPublicUrl(d.file_url)?.data?.publicUrl || "#";
+  const getDocUrl = (d) => {
+    if (!d) return "#";
+    if (d.dataUrl) return d.dataUrl;
+    if (d.file_url) return supabase.storage.from('documents_bucket').getPublicUrl(d.file_url)?.data?.publicUrl || "#";
+    return "#";
+  };
 
   return (
     <>
