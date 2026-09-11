@@ -2287,7 +2287,7 @@ function PageHeader({ eyebrow, title, action }) {
   );
 }
 
-function UnitModal({ unit, role, onClose, onUpdate, onDelete, hideMaintenance }) {
+function UnitModal({ unit, role, userId, onClose, onUpdate, onDelete, hideMaintenance }) {
   const [estatus, setEstatus] = useState(unit.estatus);
   const [ubicacion, setUbicacion] = useState(unit.ubicacion);
   const [operador, setOperador] = useState(unit.operador);
@@ -3046,7 +3046,7 @@ function DocumentSection({ unit, onUpdate }) {
         name: file.name,
         file_url: uploadData.path,
         status: 'Activo',
-        uploaded_by: 'Control de Equipo',
+        uploaded_by: userId || null,
         uploaded_at: new Date().toISOString()
       }).select('id').single();
 
