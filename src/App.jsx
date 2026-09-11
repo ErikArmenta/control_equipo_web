@@ -2406,7 +2406,7 @@ function UnitModal({ unit, role, userId, onClose, onUpdate, onDelete, hideMainte
               })}
             </div>
 
-            <DocumentSection unit={unit} onUpdate={onUpdate} />
+            <DocumentSection unit={unit} userId={userId} onUpdate={onUpdate} />
 
             {unit.solicitudes && unit.solicitudes.length > 0 && (
               <>
@@ -3020,7 +3020,7 @@ function InspectionTab({ unit, onUpdate }) {
   );
 }
 
-function DocumentSection({ unit, onUpdate }) {
+function DocumentSection({ unit, userId, onUpdate }) {
   const documentos = unit.documentos || [];
   const [tipo, setTipo] = useState(DOCUMENTO_TIPOS[0]);
   const [error, setError] = useState("");
