@@ -787,7 +787,7 @@ export default function App() {
 
 
   const appRoleLower = (session.role || "").toLowerCase();
-  const canAddUnit = session.role === "Admin" || appRoleLower.includes("operacion admin") || appRoleLower.includes("coordinador") || appRoleLower.includes("digital admin");
+  const canAddUnit = appRoleLower.includes("admin") || appRoleLower.includes("coordinador");
 
   return (
     <div className="fleet-app">
@@ -2293,7 +2293,7 @@ function UnitModal({ unit, role, userId, onClose, onUpdate, onDelete, hideMainte
   const [operador, setOperador] = useState(unit.operador);
   const isAdmin = role === "Admin";
   const roleLower = (role || "").toLowerCase();
-  const canEdit = isAdmin || roleLower.includes("operacion admin") || roleLower.includes("coordinador") || roleLower.includes("digital admin");
+  const canEdit = roleLower.includes("admin") || roleLower.includes("coordinador");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(unit);
   const [tab, setTab] = useState("detalle");
