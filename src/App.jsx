@@ -3039,7 +3039,7 @@ function DocumentSection({ unit, onUpdate }) {
       const ext = file.name.split('.').pop();
       const uniqueName = `fleet_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage.from('documents_bucket').upload(uniqueName, file);
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('documents_bucket').upload(`control_equipo/${uniqueName}`, file);
       if (uploadError) throw uploadError;
 
       const { data: docData, error: dbError } = await supabase.from('documents').insert({
