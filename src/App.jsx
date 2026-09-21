@@ -697,7 +697,10 @@ export default function App() {
     // por default es Admin para no esconder botones (Agregar, Editar, Actualizar datos) detrás
     // de un parámetro de URL que nadie va a escribir a mano.
     const nombre = params.get("user") || "Admin";
-    const role = params.get("role") || "Admin";
+    let role = params.get("role") || "Admin";
+    if (role.toLowerCase().includes("admin")) {
+      role = "Admin";
+    }
     const userId = params.get("userId") || "";
     return { nombre, role, userId };
   });
