@@ -791,7 +791,7 @@ export default function App() {
   const loadData = async () => {
     try {
       const { data, error } = await supabase
-        .from("fleet_units")
+        .from("vw_fleet_units")
         .select("*")
         .order("id", { ascending: true });
       if (error) throw error;
@@ -799,7 +799,7 @@ export default function App() {
         setUnits(backfillFromSeed(data.map(rowToUnit)));
       } else {
         // Tabla vacía (primera conexión): la sembramos con las unidades de ejemplo.
-        const { error: seedError } = await supabase.from("fleet_units").insert(SEED_UNITS.map(unitToRow));
+        const { error: seedError } = await supabase.rpc("sync_fleet_units", { payload: SEED_UNITS.map(unitToRow) });
         if (seedError) throw seedError;
         setUnits(SEED_UNITS);
       }
@@ -843,8 +843,7 @@ export default function App() {
       }
       if (next.length > 0) {
         const { error: upsertError } = await supabase
-          .from("fleet_units")
-          .upsert(next.map(unitToRow), { onConflict: "id" });
+          .rpc("sync_fleet_units", { payload: next.map(unitToRow) });
         if (upsertError) throw upsertError;
       }
       showToast(successMsg, successTone);
