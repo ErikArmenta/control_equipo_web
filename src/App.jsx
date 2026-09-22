@@ -1499,6 +1499,7 @@ function Dashboard({ units, alerts, mttoAlerts, tireAlerts, dieselAlerts, setVie
 function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus, setFilterEstatus, filterBU, setFilterBU, filterAsignacion, setFilterAsignacion, filterDobleEstiba, setFilterDobleEstiba, filterThermo, setFilterThermo, filterApta, setFilterApta, filterVencidos, setFilterVencidos, businessUnits, onSelect, onAdd, onRequest, canAdd, canRequest, onBulkUpdate, onBulkAdd }) {
   const [requestFor, setRequestFor] = useState(null); // { unit, tipo }
   const [showActualizar, setShowActualizar] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
 
   const groups = useMemo(() => {
     const map = new Map();
@@ -1549,6 +1550,9 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
           {["Todos", "Asignada", "Postura"].map((a) => (
             <button key={a} className={`chip ${filterAsignacion === a ? "chip-active" : ""}`} onClick={() => setFilterAsignacion(a)}>{a}</button>
           ))}
+          {["Tractor", "Dry Van", "Flatbed"].includes(tipo) && (
+            <button className={`chip ${filterVencidos ? "chip-active" : ""}`} onClick={() => setFilterVencidos(!filterVencidos)}>Vencidos</button>
+          )}
         </div>
         <select className="select" value={filterEstatus} onChange={(e) => setFilterEstatus(e.target.value)}>
           <option value="Todos">Todos</option>
@@ -1559,15 +1563,6 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
           <option value="Todos">Unidad de negocio</option>
           {businessUnits.map((bu) => <option key={bu} value={bu}>{bu}</option>)}
         </select>
-        {["Tractor", "Dry Van", "Flatbed"].includes(tipo) && (
-          <button 
-             className={`btn btn-sm ${filterVencidos ? 'btn-danger' : 'btn-ghost'}`} 
-             onClick={() => setFilterVencidos(!filterVencidos)}
-             style={{ marginLeft: 8 }}
-          >
-            Solo vencidos
-          </button>
-        )}
         {tipo === "Dry Van" && (
           <>
             <select className="select" value={filterDobleEstiba} onChange={(e) => setFilterDobleEstiba(e.target.value)}>
@@ -1614,11 +1609,16 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
                 const pendientes = (u.solicitudes || []).length;
                 const mtto = mantenimientoStatus(u);
                 return (
-                  <div className="unit-card" key={u.id}>
+                  <div className="unit-card" key={u.id} onContextMenu={(e) => {
+                      if (expiredLabels.length > 0) {
+                          e.preventDefault();
+                          setContextMenu({ x: e.clientX, y: e.clientY, labels: expiredLabels });
+                      }
+                  }}>
                     <button className="unit-card-click" onClick={() => onSelect(u)}>
                       <div className="unit-card-top">
                         <span className="plate mono">{u.numeroEconomico}</span>
-                        {worst !== "ok" && <Badge tone={worst} title={badgeText} style={{ maxWidth: 170, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{badgeText}</Badge>}
+                        {worst !== "ok" && <Badge tone={worst}>{URGENCY_LABEL[worst]}</Badge>}
                       </div>
                       <div className="unit-tipo">{u.tipo}</div>
                       <div className="unit-desc">{u.marca} {u.modelo} · {u.anio}</div>
@@ -1644,6 +1644,17 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
             </div>
           </div>
         ))
+      )}
+
+      {contextMenu && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }} onClick={(e) => { e.preventDefault(); setContextMenu(null); }} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}>
+          <div style={{ position: 'absolute', top: contextMenu.y, left: contextMenu.x, zIndex: 10000, background: 'var(--bg-100)', border: '1px solid var(--bg-300)', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: '4px 0', minWidth: 200 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: '4px 12px', fontSize: 11, color: 'var(--fg-muted)', fontWeight: 600, borderBottom: '1px solid var(--bg-200)', marginBottom: 4, textTransform: 'uppercase' }}>Documentos Vencidos / Urgentes</div>
+            {contextMenu.labels.map((l, i) => (
+              <div key={i} style={{ padding: '6px 12px', fontSize: 13, color: 'var(--fg-norm)' }}>{l}</div>
+            ))}
+          </div>
+        </div>
       )}
 
       {requestFor && (
