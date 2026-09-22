@@ -1648,10 +1648,10 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
 
       {contextMenu && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }} onClick={(e) => { e.preventDefault(); setContextMenu(null); }} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}>
-          <div style={{ position: 'absolute', top: contextMenu.y, left: contextMenu.x, zIndex: 10000, background: 'var(--bg-100)', border: '1px solid var(--bg-300)', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: '4px 0', minWidth: 200 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: '4px 12px', fontSize: 11, color: 'var(--fg-muted)', fontWeight: 600, borderBottom: '1px solid var(--bg-200)', marginBottom: 4, textTransform: 'uppercase' }}>Documentos Vencidos / Urgentes</div>
+          <div style={{ position: 'absolute', top: contextMenu.y + 8, left: contextMenu.x, transform: 'translateX(-50%)', zIndex: 10000, background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 8, boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)', padding: '4px 0', minWidth: 200 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: '6px 12px', fontSize: 11, color: '#6b7280', fontWeight: 600, borderBottom: '1px solid #f3f4f6', marginBottom: 4, textTransform: 'uppercase' }}>Documentos Vencidos / Urgentes</div>
             {contextMenu.labels.map((l, i) => (
-              <div key={i} style={{ padding: '6px 12px', fontSize: 13, color: 'var(--fg-norm)' }}>{l}</div>
+              <div key={i} style={{ padding: '6px 12px', fontSize: 13, color: '#111827', fontWeight: 500 }}>{l}</div>
             ))}
           </div>
         </div>
