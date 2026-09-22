@@ -832,19 +832,23 @@ export default function App() {
   // funcionó (antes se mostraba de inmediato en cada llamada, sin esperar la
   // respuesta -- con un backend real eso podía anunciar "Cambios guardados"
   // aunque el guardado fallara un instante después).
-  const persist = async (next, successMsg = "Cambios guardados", successTone = "ok") => {
+  const persist = async (next, successMsg = "Cambios guardados", successTone = "ok", modifiedUnits = null) => {
     const prevIds = new Set(units.map((u) => u.id));
     const nextIds = new Set(next.map((u) => u.id));
     const removedIds = [...prevIds].filter((id) => !nextIds.has(id));
     setUnits(next);
+    
+    const unitsToSync = modifiedUnits || next;
+    
     try {
       if (removedIds.length > 0) {
-        const { error: delError } = await supabase.from("fleet_units").delete().in("id", removedIds);
+        const { error: delError } = await supabase.from("fleet_units_base").delete().in("id", removedIds);
         if (delError) throw delError;
       }
-      if (next.length > 0) {
+      if (unitsToSync.length > 0 && removedIds.length !== unitsToSync.length) {
+        // Only run sync if there are units to update/insert, and it wasn't just a deletion
         const { error: upsertError } = await supabase
-          .rpc("sync_fleet_units", { payload: next.map(unitToRow) });
+          .rpc("sync_fleet_units", { payload: unitsToSync.map(unitToRow) });
         if (upsertError) throw upsertError;
       }
       showToast(successMsg, successTone);
@@ -866,6 +870,7 @@ export default function App() {
   });
 
   const updateUnit = (id, changes) => {
+    let modifiedUnit = null;
     const next = units.map((u) => {
       if (u.id !== id) return u;
       const merged = normalizarPlacaAmericana({ ...u, ...changes });
@@ -885,14 +890,16 @@ export default function App() {
       if (merged.placasUs !== (changes.placasUs ?? u.placasUs)) {
         entries.push(logChange(u, "placasUs", changes.placasUs ?? u.placasUs, merged.placasUs));
       }
-      return { ...merged, historial: [...entries, ...(u.historial || [])] };
+      modifiedUnit = { ...merged, historial: [...entries, ...(u.historial || [])] };
+      return modifiedUnit;
     });
-    persist(next, "Cambios guardados");
+    persist(next, "Cambios guardados", "ok", modifiedUnit ? [modifiedUnit] : null);
   };
 
   const addUnit = (unit) => {
     const id = Math.max(0, ...units.map((u) => u.id)) + 1;
-    persist([{ ...normalizarPlacaAmericana(unit), id, historial: [] }, ...units], "Unidad agregada");
+    const newUnit = { ...normalizarPlacaAmericana(unit), id, historial: [] };
+    persist([newUnit, ...units], "Unidad agregada", "ok", [newUnit]);
     setShowAdd(false);
   };
 
@@ -905,6 +912,7 @@ export default function App() {
     // updates: [{ id, changes }, ...]
     const changesById = new Map(updates.map((u) => [u.id, u.changes]));
     const esPrimitivo = (v) => v === null || v === undefined || typeof v !== "object";
+    const modifiedUnits = [];
     const next = units.map((u) => {
       const changes = changesById.get(u.id);
       if (!changes) return u;
@@ -918,30 +926,34 @@ export default function App() {
       if (merged.placasUs !== (changes.placasUs ?? u.placasUs)) {
         entries.push(logChange(u, "placasUs", changes.placasUs ?? u.placasUs, merged.placasUs));
       }
-      return { ...merged, historial: [...entries, ...(u.historial || [])] };
+      const res = { ...merged, historial: [...entries, ...(u.historial || [])] };
+      modifiedUnits.push(res);
+      return res;
     });
-    persist(next, `${updates.length} unidad${updates.length === 1 ? "" : "es"} actualizada${updates.length === 1 ? "" : "s"}`);
+    persist(next, `${updates.length} unidad${updates.length === 1 ? "" : "es"} actualizada${updates.length === 1 ? "" : "s"}`, "ok", modifiedUnits);
   };
 
   const bulkAddUnits = (newUnits) => {
     // newUnits: arreglo de objetos de unidad (sin id todavía)
     let nextId = Math.max(0, ...units.map((u) => u.id)) + 1;
     const withIds = newUnits.map((u) => ({ ...normalizarPlacaAmericana(u), id: nextId++, historial: [] }));
-    persist([...withIds, ...units], `${withIds.length} unidad${withIds.length === 1 ? "" : "es"} agregada${withIds.length === 1 ? "" : "s"}`);
+    persist([...withIds, ...units], `${withIds.length} unidad${withIds.length === 1 ? "" : "es"} agregada${withIds.length === 1 ? "" : "s"}`, "ok", withIds);
   };
 
   const deleteUnit = (id) => {
-    persist(units.filter((u) => u.id !== id), "Unidad eliminada", "urgente");
+    persist(units.filter((u) => u.id !== id), "Unidad eliminada", "urgente", []);
     setSelected(null);
   };
 
   const requestUnit = (id, solicitud) => {
+    let modifiedUnit = null;
     const next = units.map((u) => {
       if (u.id !== id) return u;
       const entry = { ...solicitud, id: genId(), fecha: new Date().toISOString(), usuario: session?.nombre || "—", estatus: "Pendiente" };
-      return { ...u, solicitudes: [entry, ...(u.solicitudes || [])] };
+      modifiedUnit = { ...u, solicitudes: [entry, ...(u.solicitudes || [])] };
+      return modifiedUnit;
     });
-    persist(next, "Solicitud enviada");
+    persist(next, "Solicitud enviada", "ok", modifiedUnit ? [modifiedUnit] : null);
   };
 
   // Aprobar/rechazar una solicitud de asignación/préstamo ya registrada (ver PERMISOS_POR_ROL:
@@ -4314,9 +4326,10 @@ function DocumentSection({ unit, onUpdate }) {
   const documentos = unit.documentos || [];
   const [tipo, setTipo] = useState(DOCUMENTO_TIPOS[0]);
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
   const inputRef = useRef(null);
 
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     setError("");
@@ -4325,19 +4338,54 @@ function DocumentSection({ unit, onUpdate }) {
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
+    
+    setUploading(true);
+    
+    try {
+      const safeFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const filePath = `${Date.now()}_${safeFileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('documents_bucket')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+        
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents_bucket')
+        .getPublicUrl(filePath);
+
+      const documentName = `${unit.numeroEconomico} - ${tipo} - ${file.name}`;
+      const currentUser = (await supabase.auth.getUser()).data?.user;
+      
+      const { error: dbError } = await supabase
+        .from('documents')
+        .insert({
+          name: documentName,
+          file_url: publicUrl,
+          status: 'Aprobado',
+          category_id: '233c9e88-66a5-4089-8881-48eb5766d2c9',
+          category_ids: ['233c9e88-66a5-4089-8881-48eb5766d2c9'],
+          uploaded_by: currentUser ? currentUser.id : null,
+        });
+
+      if (dbError) throw dbError;
+
       const entry = {
         nombre: file.name,
         tipo,
-        dataUrl: reader.result,
+        dataUrl: publicUrl,
         fecha: new Date().toISOString(),
       };
+      
       onUpdate({ documentos: [entry, ...documentos] });
       if (inputRef.current) inputRef.current.value = "";
-    };
-    reader.onerror = () => setError("No se pudo leer el archivo.");
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Error subiendo documento:", err);
+      setError("Error al subir el documento. Intenta de nuevo.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removeDoc = (idx) => {
@@ -4348,11 +4396,12 @@ function DocumentSection({ unit, onUpdate }) {
     <>
       <h4 className="section-title"><ClipboardList size={14} /> Documentos adjuntos</h4>
       <div className="doc-upload">
-        <select className="select" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+        <select className="select" value={tipo} onChange={(e) => setTipo(e.target.value)} disabled={uploading}>
           {DOCUMENTO_TIPOS.map((t) => <option key={t}>{t}</option>)}
         </select>
-        <input ref={inputRef} className="input" type="file" accept="application/pdf,image/*" onChange={handleFile} />
+        <input ref={inputRef} className="input" type="file" accept="application/pdf,image/*" onChange={handleFile} disabled={uploading} />
       </div>
+      {uploading && <div className="doc-uploading" style={{ color: "#0052cc", fontSize: 13, marginBottom: 12 }}>Subiendo archivo...</div>}
       {error && <div className="doc-error">{error}</div>}
       {documentos.length === 0 ? (
         <div className="empty" style={{ padding: "6px 0 14px" }}>Sin documentos adjuntos.</div>
