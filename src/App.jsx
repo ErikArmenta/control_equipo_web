@@ -678,8 +678,8 @@ function rowToUnit(row) {
   return unit;
 }
 
-function Badge({ tone, children }) {
-  return <span className={`badge badge-${tone}`}>{children}</span>;
+function Badge({ tone, children, ...props }) {
+  return <span className={`badge badge-${tone}`} {...props}>{children}</span>;
 }
 
 function StatusDot({ estatus }) {
@@ -719,6 +719,7 @@ export default function App() {
   const [filterDobleEstiba, setFilterDobleEstiba] = useState("Todos");
   const [filterThermo, setFilterThermo] = useState("Todos");
   const [filterApta, setFilterApta] = useState("Todos");
+  const [filterVencidos, setFilterVencidos] = useState(false);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [toast, setToast] = useState(null);
@@ -1090,6 +1091,10 @@ export default function App() {
         if (filterThermo !== "Todos" && u.thermo !== filterThermo) return false;
         if (filterApta !== "Todos" && u.aptaProductosMedicos !== filterApta) return false;
       }
+      if (filterVencidos) {
+        const isVencido = checkFieldsFor(u).some(({ field }) => u[field] && urgencyOf(daysUntil(u[field])) === "vencido");
+        if (!isVencido) return false;
+      }
       if (query.trim()) {
         const q = query.toLowerCase();
         const hay = [u.numeroEconomico, u.placas, u.vin, u.marca, u.modelo, u.operador, u.ubicacion].join(" ").toLowerCase();
@@ -1097,7 +1102,7 @@ export default function App() {
       }
       return true;
     });
-  }, [units, catalogTipo, filterEstatus, filterBU, filterAsignacion, filterDobleEstiba, filterThermo, filterApta, query]);
+  }, [units, catalogTipo, filterEstatus, filterBU, filterAsignacion, filterDobleEstiba, filterThermo, filterApta, filterVencidos, query]);
 
   const businessUnits = useMemo(
     () => Array.from(new Set([...BUSINESS_UNIT_OPTIONS, ...units.map((u) => u.businessUnit).filter(Boolean)])).sort(),
@@ -1143,6 +1148,7 @@ export default function App() {
               filterDobleEstiba={filterDobleEstiba} setFilterDobleEstiba={setFilterDobleEstiba}
               filterThermo={filterThermo} setFilterThermo={setFilterThermo}
               filterApta={filterApta} setFilterApta={setFilterApta}
+              filterVencidos={filterVencidos} setFilterVencidos={setFilterVencidos}
               businessUnits={businessUnits}
               onSelect={setSelected}
               onAdd={() => setShowAdd(true)}
@@ -1490,7 +1496,7 @@ function Dashboard({ units, alerts, mttoAlerts, tireAlerts, dieselAlerts, setVie
   );
 }
 
-function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus, setFilterEstatus, filterBU, setFilterBU, filterAsignacion, setFilterAsignacion, filterDobleEstiba, setFilterDobleEstiba, filterThermo, setFilterThermo, filterApta, setFilterApta, businessUnits, onSelect, onAdd, onRequest, canAdd, canRequest, onBulkUpdate, onBulkAdd }) {
+function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus, setFilterEstatus, filterBU, setFilterBU, filterAsignacion, setFilterAsignacion, filterDobleEstiba, setFilterDobleEstiba, filterThermo, setFilterThermo, filterApta, setFilterApta, filterVencidos, setFilterVencidos, businessUnits, onSelect, onAdd, onRequest, canAdd, canRequest, onBulkUpdate, onBulkAdd }) {
   const [requestFor, setRequestFor] = useState(null); // { unit, tipo }
   const [showActualizar, setShowActualizar] = useState(false);
 
@@ -1553,6 +1559,15 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
           <option value="Todos">Unidad de negocio</option>
           {businessUnits.map((bu) => <option key={bu} value={bu}>{bu}</option>)}
         </select>
+        {["Tractor", "Dry Van", "Flatbed"].includes(tipo) && (
+          <button 
+             className={`btn btn-sm ${filterVencidos ? 'btn-danger' : 'btn-ghost'}`} 
+             onClick={() => setFilterVencidos(!filterVencidos)}
+             style={{ marginLeft: 8 }}
+          >
+            Solo vencidos
+          </button>
+        )}
         {tipo === "Dry Van" && (
           <>
             <select className="select" value={filterDobleEstiba} onChange={(e) => setFilterDobleEstiba(e.target.value)}>
@@ -1585,8 +1600,16 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
                 // Solo se consideran los vencimientos que sí tienen fecha capturada -- un campo
                 // vacío (frecuente en unidades recién dadas de alta) no debe contar como
                 // "al corriente" ni afectar el peor estatus mostrado en la tarjeta.
-                const worst = checkFieldsFor(u).filter(({ field }) => u[field]).map(({ field }) => urgencyOf(daysUntil(u[field]))).sort((a, b) =>
-                  ["vencido", "urgente", "proximo", "ok"].indexOf(a) - ["vencido", "urgente", "proximo", "ok"].indexOf(b))[0] || "ok";
+                const activeChecks = checkFieldsFor(u).filter(({ field }) => u[field]);
+                const expirations = activeChecks.map(({ field, label }) => ({ label, urgency: urgencyOf(daysUntil(u[field])) }));
+                const worst = expirations.sort((a, b) => ["vencido", "urgente", "proximo", "ok"].indexOf(a.urgency) - ["vencido", "urgente", "proximo", "ok"].indexOf(b.urgency))[0]?.urgency || "ok";
+                
+                const expiredLabels = expirations.filter(e => e.urgency === "vencido" || e.urgency === "urgente").map(e => e.label);
+                let badgeText = URGENCY_LABEL[worst];
+                if (worst !== "ok" && expiredLabels.length > 0) {
+                    badgeText = `${URGENCY_LABEL[worst]}: ${expiredLabels.join(', ')}`;
+                }
+
                 const asignacion = asignacionOf(u);
                 const pendientes = (u.solicitudes || []).length;
                 const mtto = mantenimientoStatus(u);
@@ -1595,7 +1618,7 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
                     <button className="unit-card-click" onClick={() => onSelect(u)}>
                       <div className="unit-card-top">
                         <span className="plate mono">{u.numeroEconomico}</span>
-                        {worst !== "ok" && <Badge tone={worst}>{URGENCY_LABEL[worst]}</Badge>}
+                        {worst !== "ok" && <Badge tone={worst} title={badgeText} style={{ maxWidth: 170, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{badgeText}</Badge>}
                       </div>
                       <div className="unit-tipo">{u.tipo}</div>
                       <div className="unit-desc">{u.marca} {u.modelo} · {u.anio}</div>
