@@ -39,11 +39,11 @@ const ESTATUS = ["Activo", "En taller", "Fuera de servicio", "Baja"];
 // que la misma unidad quedara escrita de formas distintas (mayúsculas, espacios, etc.) y rompiera el
 // filtro del catálogo. Un valor ya capturado que no esté en esta lista (p. ej. "XBC"/"XBCF" de datos
 // anteriores) no se pierde: el formulario lo sigue mostrando como opción aparte, marcado como tal.
-const BUSINESS_UNIT_OPTIONS = ["XBW", "XBW-US", "US Local", "US OTR", "OTR", "Local MX XBC", "Local MX XBCF", "Local XBW"];
+const BUSINESS_UNIT_OPTIONS = ["XBC", "XBCF", "LOCAL MX", "US LOCAL", "US OTR", "OTR", "XBW", "XBW-US", "LOCAL XBW"];
 // Unidades de negocio que operan en EU: sus tractocamiones sí traen placa americana. El resto
 // de unidades de negocio son nacionales y no la traen -- para esos tractocamiones el campo
 // "Placas US" se normaliza a "N/A" (ver normalizarPlacaAmericana más abajo).
-const US_PLATE_BUSINESS_UNITS = ["US Local", "US OTR", "OTR"];
+const US_PLATE_BUSINESS_UNITS = ["US LOCAL", "US OTR", "OTR"];
 function aplicaPlacaAmericana(tipo, businessUnit) {
   if (tipo !== "Tractor") return false;
   const bu = (businessUnit || "").trim().toLowerCase();
