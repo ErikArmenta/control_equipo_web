@@ -34,7 +34,7 @@ const DIESEL_TIPOS = ["Tractor", "Rabón"];
 // en el Dashboard de Diesel (p. ej. "TRACTORES"). Si aparece un tipo nuevo que no está aquí,
 // se usa "<tipo>s" como respaldo automático.
 const TIPO_DIESEL_PLURAL = { "Tractor": "Tractores", "Rabón": "Rabones" };
-const ESTATUS = ["Activo", "En taller", "Fuera de servicio", "Baja"];
+const ESTATUS = ["Activo", "Taller - Corto Plazo", "Taller - Largo Plazo", "Inactivo", "En Proceso de Baja"];
 // Catálogo fijo de unidades de negocio -- antes "Unidad de negocio" era texto libre, lo que dejaba
 // que la misma unidad quedara escrita de formas distintas (mayúsculas, espacios, etc.) y rompiera el
 // filtro del catálogo. Un valor ya capturado que no esté en esta lista (p. ej. "XBC"/"XBCF" de datos
@@ -3505,7 +3505,10 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
               <div className="field-inline">
                 <label className="field-label">Estatus</label>
                 <select className="select" value={estatus} onChange={(e) => setEstatus(e.target.value)}>
-                  {ESTATUS.map((s) => <option key={s}>{s}</option>)}
+                  {ESTATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {estatus && !ESTATUS.includes(estatus) && (
+                    <option value={estatus}>{estatus} (valor anterior)</option>
+                  )}
                 </select>
               </div>
               <div className="field-inline">
