@@ -1516,7 +1516,8 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
   const groups = useMemo(() => {
     const map = new Map();
     units.forEach((u) => {
-      const bu = u.businessUnit && u.businessUnit.trim() ? u.businessUnit : "Sin unidad de negocio";
+      let bu = u.businessUnit && u.businessUnit.trim() ? u.businessUnit : "Sin unidad de negocio";
+      if (u.estatus === "En Proceso de Baja") bu = "En Proceso de Baja";
       if (!map.has(bu)) map.set(bu, []);
       map.get(bu).push(u);
     });
@@ -1846,7 +1847,8 @@ function SegurosView({ units, pais, query, setQuery, onSelect }) {
   const groups = useMemo(() => {
     const map = new Map();
     filtered.forEach((u) => {
-      const bu = u.businessUnit && u.businessUnit.trim() ? u.businessUnit : "Sin unidad de negocio";
+      let bu = u.businessUnit && u.businessUnit.trim() ? u.businessUnit : "Sin unidad de negocio";
+      if (u.estatus === "En Proceso de Baja") bu = "En Proceso de Baja";
       if (!map.has(bu)) map.set(bu, []);
       map.get(bu).push(u);
     });
