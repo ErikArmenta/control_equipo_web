@@ -1117,8 +1117,8 @@ export default function App() {
   }, [units, catalogTipo, filterEstatus, filterBU, filterAsignacion, filterDobleEstiba, filterThermo, filterApta, filterVencidos, query]);
 
   const businessUnits = useMemo(
-    () => Array.from(new Set([...BUSINESS_UNIT_OPTIONS, ...units.map((u) => u.businessUnit).filter(Boolean)])).sort(),
-    [units]
+    () => [...BUSINESS_UNIT_OPTIONS].sort(),
+    []
   );
 
 
