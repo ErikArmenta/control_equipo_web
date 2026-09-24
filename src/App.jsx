@@ -3428,6 +3428,7 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
   const [estatus, setEstatus] = useState(unit.estatus);
   const [ubicacion, setUbicacion] = useState(unit.ubicacion);
   const [operador, setOperador] = useState(unit.operador);
+  const [inspeccionAnual, setInspeccionAnual] = useState(unit.inspeccionAnual || "");
   const canEdit = tienePermiso(role, "catalogo.editarTodo");
   const canEdicionRapida = tienePermiso(role, "catalogo.edicionRapida");
   // El desplegable de operador (catálogo de Operadores) solo aplica a Tractor -- Dry Van y
@@ -3444,7 +3445,7 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
   const showMantenimiento = !hideMaintenance && tienePermiso(role, "mantenimiento.ver");
   const showInspeccion = !hideMaintenance && tienePermiso(role, "inspeccion.ver");
 
-  const saveQuick = () => onUpdate({ estatus, ubicacion, operador });
+  const saveQuick = () => onUpdate({ estatus, ubicacion, operador, inspeccionAnual });
   const saveFull = () => { onUpdate(form); setEditing(false); };
 
   return (
@@ -3557,6 +3558,10 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
                 ) : (
                   <input className="input" value={operador} onChange={(e) => setOperador(e.target.value)} />
                 )}
+              </div>
+              <div className="field-inline">
+                <label className="field-label">Inspección Anual</label>
+                <input type="date" className="input" value={inspeccionAnual} onChange={(e) => setInspeccionAnual(e.target.value)} />
               </div>
               <button className="btn btn-primary" onClick={saveQuick}>Guardar cambios</button>
             </div>
