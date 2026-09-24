@@ -3514,8 +3514,31 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
                 </select>
               </div>
               <div className="field-inline">
-                <label className="field-label">Ubicación</label>
-                <input className="input" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} />
+                <label className="field-label" style={{ alignSelf: 'flex-start', marginTop: 6 }}>Ubicación</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+                  {["West", "Central MX", "Central US"].map((opt) => {
+                    const isSelected = (ubicacion || "").includes(opt);
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        style={{ padding: '4px 10px', fontSize: 12 }}
+                        className={`btn ${isSelected ? "btn-primary" : "btn-ghost"}`}
+                        onClick={() => {
+                          let current = ubicacion ? ubicacion.split(",").map(s => s.trim()).filter(Boolean) : [];
+                          if (isSelected) {
+                            current = current.filter(c => c !== opt);
+                          } else {
+                            current.push(opt);
+                          }
+                          setUbicacion(current.join(", "));
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div className="field-inline">
                 <label className="field-label">Operador asignado</label>
