@@ -855,9 +855,10 @@ export default function App() {
         if (upsertError) throw upsertError;
       }
       showToast(successMsg, successTone);
+      loadData();
     } catch (e) {
       console.error("Error guardando en Supabase:", e);
-      showToast("No se pudo guardar en Supabase. Intenta de nuevo.", "urgente");
+      showToast(`Error al guardar: ${e.message || JSON.stringify(e)}`, "urgente");
     }
   };
 
