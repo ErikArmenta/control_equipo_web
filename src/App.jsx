@@ -1162,6 +1162,7 @@ export default function App() {
               query={query} setQuery={setQuery}
               filterEstatus={filterEstatus} setFilterEstatus={setFilterEstatus}
               filterBU={filterBU} setFilterBU={setFilterBU}
+              filterUbicacion={filterUbicacion} setFilterUbicacion={setFilterUbicacion}
               filterAsignacion={filterAsignacion} setFilterAsignacion={setFilterAsignacion}
               filterDobleEstiba={filterDobleEstiba} setFilterDobleEstiba={setFilterDobleEstiba}
               filterThermo={filterThermo} setFilterThermo={setFilterThermo}
@@ -1514,7 +1515,7 @@ function Dashboard({ units, alerts, mttoAlerts, tireAlerts, dieselAlerts, setVie
   );
 }
 
-function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus, setFilterEstatus, filterBU, setFilterBU, filterAsignacion, setFilterAsignacion, filterDobleEstiba, setFilterDobleEstiba, filterThermo, setFilterThermo, filterApta, setFilterApta, filterVencidos, setFilterVencidos, businessUnits, onSelect, onAdd, onRequest, canAdd, canRequest, onBulkUpdate, onBulkAdd }) {
+function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus, setFilterEstatus, filterBU, setFilterBU, filterUbicacion, setFilterUbicacion, filterAsignacion, setFilterAsignacion, filterDobleEstiba, setFilterDobleEstiba, filterThermo, setFilterThermo, filterApta, setFilterApta, filterVencidos, setFilterVencidos, businessUnits, onSelect, onAdd, onRequest, canAdd, canRequest, onBulkUpdate, onBulkAdd }) {
   const [requestFor, setRequestFor] = useState(null); // { unit, tipo }
   const [showActualizar, setShowActualizar] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
@@ -1590,10 +1591,22 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
             {ESTATUS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        <select className="select" value={filterBU} onChange={(e) => setFilterBU(e.target.value)}>
-          <option value="Todos">Unidad de negocio</option>
-          {businessUnits.map((bu) => <option key={bu} value={bu}>{bu}</option>)}
-        </select>
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <label style={{ fontSize: "11px", fontWeight: "600", color: "#6b7280", marginLeft: "2px", textTransform: "uppercase" }}>Unidad de Negocio</label>
+          <select className="select" value={filterBU} onChange={(e) => setFilterBU(e.target.value)}>
+            <option value="Todos">Todas</option>
+            {businessUnits.map((bu) => <option key={bu} value={bu}>{bu}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <label style={{ fontSize: "11px", fontWeight: "600", color: "#6b7280", marginLeft: "2px", textTransform: "uppercase" }}>Ubicación</label>
+          <select className="select" value={filterUbicacion} onChange={(e) => setFilterUbicacion(e.target.value)}>
+            <option value="Todos">Todas</option>
+            <option value="West">West</option>
+            <option value="Central MX">Central MX</option>
+            <option value="Central US">Central US</option>
+          </select>
+        </div>
         {tipo === "Dry Van" && (
           <>
             <select className="select" value={filterDobleEstiba} onChange={(e) => setFilterDobleEstiba(e.target.value)}>
