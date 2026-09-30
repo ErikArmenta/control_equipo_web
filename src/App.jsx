@@ -717,6 +717,7 @@ export default function App() {
   const [dieselSeccion, setDieselSeccion] = useState(DIESEL_SECCIONES[0]);
   const [filterEstatus, setFilterEstatus] = useState("Todos");
   const [filterBU, setFilterBU] = useState("Todos");
+  const [filterUbicacion, setFilterUbicacion] = useState("Todos");
   const [filterAsignacion, setFilterAsignacion] = useState("Todos");
   // Filtros exclusivos del catálogo Dry Van (ver Catalog más abajo, solo se muestran ahí).
   const [filterDobleEstiba, setFilterDobleEstiba] = useState("Todos");
@@ -1097,6 +1098,7 @@ export default function App() {
         if (!mantenimientoStatus(u).pendiente) return false;
       } else if (filterEstatus !== "Todos" && u.estatus !== filterEstatus) return false;
       if (filterBU !== "Todos" && u.businessUnit !== filterBU) return false;
+      if (filterUbicacion !== "Todos" && !(u.ubicacion || "").includes(filterUbicacion)) return false;
       if (filterAsignacion !== "Todos" && asignacionOf(u) !== filterAsignacion) return false;
       // Filtros de características Dry Van (doble estiba / thermo / apta para productos médicos):
       // solo tienen efecto dentro del catálogo Dry Van, así que basta con que catalogTipo lo sea
@@ -1571,11 +1573,13 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
             <button className={`chip ${filterVencidos ? "chip-active" : ""}`} onClick={() => setFilterVencidos(!filterVencidos)}>Vencidos</button>
           )}
         </div>
-        <select className="select" value={filterEstatus} onChange={(e) => setFilterEstatus(e.target.value)}>
-          <option value="Todos">Todos</option>
-          {ESTATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-          <option value="PENDIENTE_MTTO">{MTTO_ESTATUS}</option>
-        </select>
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <label style={{ fontSize: "11px", fontWeight: "600", color: "#6b7280", marginLeft: "2px", textTransform: "uppercase" }}>Estatus</label>
+          <select className="select" value={filterEstatus} onChange={(e) => setFilterEstatus(e.target.value)}>
+            <option value="Todos">Todos</option>
+            {ESTATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
         <select className="select" value={filterBU} onChange={(e) => setFilterBU(e.target.value)}>
           <option value="Todos">Unidad de negocio</option>
           {businessUnits.map((bu) => <option key={bu} value={bu}>{bu}</option>)}
@@ -1640,7 +1644,16 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
                       <div className="unit-tipo">{u.tipo}</div>
                       <div className="unit-desc">{u.marca} {u.modelo} · {u.anio}</div>
                       <div className="unit-meta"><StatusDot estatus={u.estatus} /> {u.estatus}</div>
-                      <div className="unit-meta"><MapPin size={13} /> {u.ubicacion}</div>
+                      {u.ubicacion ? (
+                        <div className="unit-meta" style={{ display: "flex", flexWrap: "wrap", gap: "4px", alignItems: "center" }}>
+                          <MapPin size={13} />
+                          {u.ubicacion.split(",").map(s => s.trim()).filter(Boolean).map(ub => (
+                            <span key={ub} style={{ background: "#e0e7ff", color: "#3730a3", padding: "1px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "600" }}>{ub}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="unit-meta"><MapPin size={13} /> -</div>
+                      )}
                       {mtto.pendiente && (
                         <span className="badge-mtto-inline"><Wrench size={11} /> {MTTO_ESTATUS}</span>
                       )}
@@ -4920,4 +4933,6 @@ const CSS = `
   .form-grid, .detail-grid, .vence-grid{ grid-template-columns:1fr; }
 }
 `;
+
+
 
