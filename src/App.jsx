@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Search, AlertTriangle, LogOut, Plus, X, MapPin, Wrench,
   ShieldAlert, Clock, Pencil, Trash2, ChevronRight, ChevronDown, User,
@@ -1531,20 +1531,20 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
   }, [units]);
 
   const exportAllHeaders = ["Número económico", "Tipo", "Estatus", "Marca", "Modelo", "Año", "Configuración", "Placas MX", "Placas US", "VIN", "Unidad de negocio", "Gerente de flota", "Operador", "Ubicación", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Permiso SCT", "Venc. Físicomecánica", "Venc. Emisiones", "DOT", "IFTA", "Doble Estiba", "Thermo", "Apta Médicos"];
-  const exportAllRows = units.map((u) => [
-    u.numeroEconomico, u.tipo || "-", u.estatus, u.marca || "-", u.modelo || "-", u.anio, u.configuracion || "-", u.placas || "-", u.placasUs || "-", u.vin, u.businessUnit || "-", u.gerenteFlota || "-", u.operador || "-", u.ubicacion || "-",
-    u.seguroUsaAseguradora || "-", u.seguroUsaPoliza || "-", u.seguroUsaVencimiento || "-", u.seguroUsaRadioCobertura || "-",
-    u.seguroMxAseguradora || "-", u.seguroMxPoliza || "-", u.seguroMxVencimiento || "-",
-    u.permisoSct || "-", u.vigenciaFisicomecanica || "-", u.vigenciaEmisiones || "-", u.permisoDot || "-", u.ifta || "-",
-    u.dobleEstiba || "-", u.thermo || "-", u.aptaProductosMedicos || "-"
+  const exportAllRows = allUnits.map((u) => [
+    u.numeroEconomico, u.tipo || "—", u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.configuracion || "—", u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—",
+    u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—",
+    u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—",
+    u.permisoSct || "—", u.vigenciaFisicomecanica || "—", u.vigenciaEmisiones || "—", u.permisoDot || "—", u.ifta || "—",
+    u.dobleEstiba || "—", u.thermo || "—", u.aptaProductosMedicos || "—"
   ]);
 
   const exportHeaders = tipo === "Tractor"
     ? ["Número económico", "Estatus", "Marca", "Modelo", "Año", "Configuración", "Placas MX", "Placas US", "VIN", "Unidad de negocio", "Gerente de flota", "Operador", "Ubicación", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Permiso SCT", "Venc. Físicomecánica", "Venc. Emisiones", "DOT", "IFTA"]
     : ["Número económico", "Estatus", "Marca", "Modelo", "Año", "Configuración", "Placas US", "VIN", "Operador", "Ubicación", "Doble Estiba", "Thermo", "Apta Médicos", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Venc. Físicomecánica"];
-  const exportRows = filtered.map((u) => tipo === "Tractor"
-    ? [u.numeroEconomico, u.estatus, u.marca || "-", u.modelo || "-", u.anio, u.configuracion || "-", u.placas || "-", u.placasUs || "-", u.vin, u.businessUnit || "-", u.gerenteFlota || "-", u.operador || "-", u.ubicacion || "-", u.seguroUsaAseguradora || "-", u.seguroUsaPoliza || "-", u.seguroUsaVencimiento || "-", u.seguroUsaRadioCobertura || "-", u.seguroMxAseguradora || "-", u.seguroMxPoliza || "-", u.seguroMxVencimiento || "-", u.permisoSct || "-", u.vigenciaFisicomecanica || "-", u.vigenciaEmisiones || "-", u.permisoDot || "-", u.ifta || "-"]
-    : [u.numeroEconomico, u.estatus, u.marca || "-", u.modelo || "-", u.anio, u.configuracion || "-", u.placasUs || "-", u.vin, u.operador || "-", u.ubicacion || "-", u.dobleEstiba || "No", u.thermo || "No", u.aptaProductosMedicos || "No", u.seguroUsaAseguradora || "-", u.seguroUsaPoliza || "-", u.seguroUsaVencimiento || "-", u.seguroUsaRadioCobertura || "-", u.seguroMxAseguradora || "-", u.seguroMxPoliza || "-", u.seguroMxVencimiento || "-", u.vigenciaFisicomecanica || "-"]
+  const exportRows = units.map((u) => tipo === "Tractor"
+    ? [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.configuracion || "—", u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.permisoSct || "—", u.vigenciaFisicomecanica || "—", u.vigenciaEmisiones || "—", u.permisoDot || "—", u.ifta || "—"]
+    : [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.configuracion || "—", u.placasUs || "—", u.vin, u.operador || "—", u.ubicacion || "—", u.dobleEstiba || "No", u.thermo || "No", u.aptaProductosMedicos || "No", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.vigenciaFisicomecanica || "—"]
   );
 
   return (
@@ -4943,8 +4943,6 @@ const CSS = `
   .form-grid, .detail-grid, .vence-grid{ grid-template-columns:1fr; }
 }
 `;
-
-
 
 
 
