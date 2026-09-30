@@ -4402,8 +4402,8 @@ function DocumentSection({ unit, onUpdate }) {
           name: documentName,
           file_url: publicUrl,
           status: 'Aprobado',
-          category_id: '233c9e88-66a5-4089-8881-48eb5766d2c9',
-          category_ids: ['233c9e88-66a5-4089-8881-48eb5766d2c9'],
+          // category_id: null, // Para que salga en Control de Equipo
+          // category_ids: [], // Para que salga en Control de Equipo
           uploaded_by: currentUser ? currentUser.id : null,
         });
 
@@ -4920,3 +4920,4 @@ const CSS = `
   .form-grid, .detail-grid, .vence-grid{ grid-template-columns:1fr; }
 }
 `;
+
