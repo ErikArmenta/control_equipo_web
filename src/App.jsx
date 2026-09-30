@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Search, AlertTriangle, LogOut, Plus, X, MapPin, Wrench,
   ShieldAlert, Clock, Pencil, Trash2, ChevronRight, ChevronDown, User,
@@ -1543,6 +1543,7 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
       <PageHeader eyebrow={`Catálogo — ${tipo}`} title={`Unidades (${units.length} de ${total})`}
         action={
           <div style={{ display: "flex", gap: 8 }}>
+            <ExportButton headers={exportAllHeaders} rows={exportAllRows} fileName="Padron_Completo_Tecma" label="Descargar Padrón Completo" />
             <ExportButton headers={exportHeaders} rows={exportRows} fileName={`Catálogo ${tipo}`} />
             {canAdd && <button className="btn btn-ghost" onClick={() => setShowActualizar(true)}><Upload size={14} /> Actualizar datos</button>}
             {canAdd && <button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> Agregar unidad</button>}
@@ -4933,6 +4934,8 @@ const CSS = `
   .form-grid, .detail-grid, .vence-grid{ grid-template-columns:1fr; }
 }
 `;
+
+
 
 
 
