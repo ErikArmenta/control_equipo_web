@@ -24,7 +24,7 @@ const LOGO_TECMA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAtUAAAEQCAYAAA
 
 const TIPOS = ["Tractor", "Dry Van", "Flatbed", "Pick Up", "Van", "Day Cab", "Rabon"];
 const UI_TABS = ["Power Unit", "Dry Van", "Flatbed"];
-const POWER_UNITS = ["Tractor", "Pick Up", "Pick up", "Van", "Day Cab", "Rabon", "Rabón"];
+const POWER_UNITS = ["Tractor", "tractor", "Pick Up", "Pick up", "pick up", "Van", "van", "Day Cab", "Day cab", "day cab", "Rabon", "Rabón", "rabon", "rabón"];
 
 function getUITipo(tipo) {
   if (POWER_UNITS.includes(tipo)) return "Power Unit";
@@ -40,7 +40,7 @@ const DIESEL_TIPOS = POWER_UNITS;
 // Nombre en plural mostrado como encabezado de cada bloque de clasificación de operadores
 // en el Dashboard de Diesel (p. ej. "TRACTORES"). Si aparece un tipo nuevo que no está aquí,
 // se usa "<tipo>s" como respaldo automático.
-const TIPO_DIESEL_PLURAL = { "Tractor": "Tractores", "Rabón": "Rabones", "Rabon": "Rabones", "Pick Up": "Pick Ups", "Pick up": "Pick ups", "Van": "Vanes" };
+const TIPO_DIESEL_PLURAL = { "Tractor": "Tractores", "tractor": "Tractores", "Rabón": "Rabones", "rabón": "Rabones", "Rabon": "Rabones", "rabon": "Rabones", "Pick Up": "Pick Ups", "Pick up": "Pick ups", "pick up": "Pick ups", "Van": "Vanes", "van": "Vanes", "Day Cab": "Day Cabs", "Day cab": "Day Cabs", "day cab": "Day Cabs" };
 const ESTATUS = ["Activo", "Taller - Corto Plazo", "Taller - Largo Plazo", "Inactivo", "En Proceso de Baja"];
 // Catálogo fijo de unidades de negocio -- antes "Unidad de negocio" era texto libre, lo que dejaba
 // que la misma unidad quedara escrita de formas distintas (mayúsculas, espacios, etc.) y rompiera el
