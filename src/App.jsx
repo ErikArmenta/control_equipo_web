@@ -1120,7 +1120,7 @@ export default function App() {
       }
       return true;
     });
-  }, [units, catalogTipo, filterEstatus, filterBU, filterAsignacion, filterDobleEstiba, filterThermo, filterApta, filterVencidos, query]);
+  }, [units, catalogTipo, filterEstatus, filterBU, filterUbicacion, filterAsignacion, filterDobleEstiba, filterThermo, filterApta, filterVencidos, query]);
 
   const businessUnits = useMemo(
     () => [...BUSINESS_UNIT_OPTIONS].sort(),
