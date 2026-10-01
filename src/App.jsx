@@ -52,7 +52,7 @@ const ESTATUS = ["Activo", "Taller - Corto Plazo", "Taller - Largo Plazo", "Inac
 // que la misma unidad quedara escrita de formas distintas (mayúsculas, espacios, etc.) y rompiera el
 // filtro del catálogo. Un valor ya capturado que no esté en esta lista (p. ej. "XBC"/"XBCF" de datos
 // anteriores) no se pierde: el formulario lo sigue mostrando como opción aparte, marcado como tal.
-const BUSINESS_UNIT_OPTIONS = ["XBC", "XBCF", "LOCAL MX", "US LOCAL", "US OTR", "OTR", "XBW", "XBW-US", "LOCAL XBW"];
+const BUSINESS_UNIT_OPTIONS = ["XBC", "XBCF", "LOCAL MX", "US LOCAL", "US OTR", "OTR", "XBW", "XBW-US", "LOCAL XBW", "SHELTER"];
 // Unidades de negocio que operan en EU: sus tractocamiones sí traen placa americana. El resto
 // de unidades de negocio son nacionales y no la traen -- para esos tractocamiones el campo
 // "Placas US" se normaliza a "N/A" (ver normalizarPlacaAmericana más abajo).
