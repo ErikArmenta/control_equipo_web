@@ -3550,8 +3550,8 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
               <Detail label="Placas MX" value={unit.placas} mono />
               <Detail label="Placas US" value={unit.placasUs || "—"} mono />
               <Detail label="VIN" value={unit.vin} mono />
-              {unit.tipo === "Power Unit" && unit.folioSct && <Detail label="Folio SCT" value={unit.folioSct} />}
-              {unit.tipo === "Power Unit" && unit.numeroDot && <Detail label="Número DOT" value={unit.numeroDot} />}
+              {POWER_UNITS.includes(unit.tipo) && unit.folioSct && <Detail label="Folio SCT" value={unit.folioSct} />}
+              {POWER_UNITS.includes(unit.tipo) && unit.numeroDot && <Detail label="Número DOT" value={unit.numeroDot} />}
               <Detail label="Año" value={unit.anio} />
               <Detail label="Configuración" value={unit.configuracion || "—"} />
               <Detail label="Unidad de negocio" value={unit.businessUnit || "—"} mono />
@@ -4595,7 +4595,7 @@ function EditForm({ form, setForm, onCancel, onSave, existingEconomicos = [] }) 
                 title={requierePlacaUS ? "" : "Unidad de negocio nacional: no aplica placa americana"}
               />
             </Field>
-            {form.tipo === "Power Unit" && (
+            {POWER_UNITS.includes(form.tipo) && (
               <>
                 <Field label="Folio SCT"><input className="input" value={form.folioSct || ""} onChange={set("folioSct")} /></Field>
                 <Field label="Número DOT"><input className="input" value={form.numeroDot || ""} onChange={set("numeroDot")} /></Field>
