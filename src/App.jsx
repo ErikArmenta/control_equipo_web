@@ -3504,7 +3504,7 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
         <div className="modal-head">
           <div>
             <span className="plate mono">{unit.numeroEconomico}</span>
-            <h2 className="modal-title">{unit.marca} {unit.modelo} · {unit.tipo}</h2>
+            <h2 className="modal-title">{unit.marca} {unit.modelo} · {POWER_UNITS.includes(unit.tipo) ? "Power Unit / " + formatTipo(unit.tipo) : formatTipo(unit.tipo)}</h2>
           </div>
           <button className="icon-btn" onClick={onClose}><X size={18} /></button>
         </div>
