@@ -587,7 +587,10 @@ function vidaTone(pct) {
   return "ok";
 }
 function asignacionOf(u) {
-  return u.operador && u.operador.trim() ? "Asignada" : "Postura";
+  const op = (u.operador || "").trim().toLowerCase();
+  if (!op || op === "-" || op === "sin asignar") return "Sin asignar";
+  if (op.includes("postura") || op.includes("posturero")) return "Postura";
+  return "Asignada";
 }
 
 // Rellena en unidades ya guardadas (localStorage) los campos nuevos que se agregaron
@@ -1592,7 +1595,7 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
           <input placeholder="Buscar por número económico, placas, VIN, operador…" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <div className="chip-row">
-          {["Todos", "Asignada", "Postura"].map((a) => (
+          {["Todos", "Asignada", "Postura", "Sin asignar"].map((a) => (
             <button key={a} className={`chip ${filterAsignacion === a ? "chip-active" : ""}`} onClick={() => setFilterAsignacion(a)}>{a}</button>
           ))}
           {["Power Unit", "Dry Van", "Flatbed"].includes(tipo) && (
@@ -1699,7 +1702,7 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
                         {asignacion}{asignacion === "Asignada" ? ` · ${u.operador}` : ""}
                       </span>
                     </button>
-                    {asignacion === "Postura" && (canRequest || pendientes > 0) && (
+                    {(asignacion === "Postura" || asignacion === "Sin asignar") && (canRequest || pendientes > 0) && (
                       <div className="postura-actions">
                         {canRequest && <button className="btn btn-ghost btn-sm" onClick={() => setRequestFor({ unit: u, tipo: "asignacion" })}>Solicitar asignación</button>}
                         {canRequest && <button className="btn btn-ghost btn-sm" onClick={() => setRequestFor({ unit: u, tipo: "prestamo" })}>Solicitud de préstamo</button>}
@@ -3602,6 +3605,7 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
                 {usaCatalogoOperadores ? (
                   <select className="select" value={operador || ""} onChange={(e) => setOperador(e.target.value)}>
                     <option value="">Sin asignar</option>
+                    <option value="Postura">Postura (Préstamo / Taller)</option>
                     {operadoresActivos.map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
                     {operador && !operadoresActivos.some((o) => o.nombre === operador) && (
                       <option value={operador}>{operador} (no está en el catálogo o está inactivo)</option>
