@@ -905,8 +905,10 @@ export default function App() {
       });
       // Si el cambio de unidad de negocio hace que ya no aplique placa americana (o viceversa),
       // refleja también ese ajuste automático en el historial.
-      if (merged.placasUs !== (changes.placasUs ?? u.placasUs)) {
-        entries.push(logChange(u, "placasUs", changes.placasUs ?? u.placasUs, merged.placasUs));
+      const oldPlacasUs = changes.placasUs ?? u.placasUs;
+      // No registramos el cambio si solo pasó de estar vacío a "N/A" por normalización automática
+      if (merged.placasUs !== oldPlacasUs && !(!oldPlacasUs?.trim() && merged.placasUs === "N/A")) {
+        entries.push(logChange(u, "placasUs", oldPlacasUs, merged.placasUs));
       }
       modifiedUnit = { ...merged, historial: [...entries, ...(u.historial || [])] };
       return modifiedUnit;
@@ -941,8 +943,9 @@ export default function App() {
           entries.push(logChange(u, k, u[k], changes[k]));
         }
       });
-      if (merged.placasUs !== (changes.placasUs ?? u.placasUs)) {
-        entries.push(logChange(u, "placasUs", changes.placasUs ?? u.placasUs, merged.placasUs));
+      const oldPlacasUsBulk = changes.placasUs ?? u.placasUs;
+      if (merged.placasUs !== oldPlacasUsBulk && !(!oldPlacasUsBulk?.trim() && merged.placasUs === "N/A")) {
+        entries.push(logChange(u, "placasUs", oldPlacasUsBulk, merged.placasUs));
       }
       const res = { ...merged, historial: [...entries, ...(u.historial || [])] };
       modifiedUnits.push(res);
