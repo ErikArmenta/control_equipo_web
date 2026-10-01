@@ -59,8 +59,7 @@ const BUSINESS_UNIT_OPTIONS = ["XBC", "XBCF", "LOCAL MX", "US LOCAL", "US OTR", 
 const US_PLATE_BUSINESS_UNITS = ["US LOCAL", "US OTR", "OTR"];
 function aplicaPlacaAmericana(tipo, businessUnit) {
   if (!POWER_UNITS.includes(tipo)) return false;
-  const bu = (businessUnit || "").trim().toLowerCase();
-  return US_PLATE_BUSINESS_UNITS.some((opt) => opt.toLowerCase() === bu);
+  return true;
 }
 function normalizarPlacaAmericana(unit) {
   if (!POWER_UNITS.includes(unit.tipo)) return unit;
