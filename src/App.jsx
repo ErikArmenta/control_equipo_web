@@ -564,7 +564,7 @@ const TIRE_POSITIONS = {
 function numLlantasFor(unit) {
   if (!unit) return 10;
   if (unit.tipo === "Dry Van" || unit.tipo === "Flatbed") return 8;
-  return unit.configuracion === "Rabón" || unit.configuracion === "Rabon" ? 6 : 10;
+  return unit.tipo === "Rabón" || unit.tipo === "Rabon" ? 6 : 10;
 }
 function llantaActivaEn(llantas, posKey) {
   return (llantas || []).find((l) => l.posicion === posKey && l.activa);
@@ -624,7 +624,7 @@ function backfillFromSeed(storedUnits) {
 const UNIT_SCALAR_FIELDS = [
   ["numeroEconomico", "numero_economico"],
   ["tipo", "tipo"],
-  ["configuracion", "configuracion"],
+
   ["marca", "marca"],
   ["modelo", "modelo"],
   ["anio", "anio"],
@@ -1551,9 +1551,9 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [units]);
 
-  const exportAllHeaders = ["Número económico", "Tipo", "Estatus", "Marca", "Modelo", "Año", "Configuración", "Placas MX", "Placas US", "VIN", "Unidad de negocio", "Gerente de flota", "Operador", "Ubicación", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Venc. Tarjeta Circulación", "Venc. Ecológico", "Venc. Físico-mecánico", "Inspección Anual", "Permiso IRP", "Permiso IFTA", "Venc. Fumigación", "Doble Estiba", "Thermo", "Apta Médicos"];
+  const exportAllHeaders = ["Número económico", "Tipo", "Estatus", "Marca", "Modelo", "Año", "Placas MX", "Placas US", "VIN", "Unidad de negocio", "Gerente de flota", "Operador", "Ubicación", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Venc. Tarjeta Circulación", "Venc. Ecológico", "Venc. Físico-mecánico", "Inspección Anual", "Permiso IRP", "Permiso IFTA", "Venc. Fumigación", "Doble Estiba", "Thermo", "Apta Médicos"];
   const exportAllRows = allUnits.map((u) => [
-    u.numeroEconomico, u.tipo || "—", u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.configuracion || "—", u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—",
+    u.numeroEconomico, u.tipo || "—", u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—",
     u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—",
     u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—",
     u.tarjetaCirculacion || "—", u.ecologico || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.irpVencimiento || "—", u.iftaVencimiento || "—", u.fumigacionVencimiento || "—",
@@ -1561,11 +1561,11 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
   ]);
 
   const exportHeaders = tipo === "Power Unit"
-    ? ["Número económico", "Estatus", "Marca", "Modelo", "Año", "Configuración", "Placas MX", "Placas US", "VIN", "Unidad de negocio", "Gerente de flota", "Operador", "Ubicación", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Venc. Tarjeta Circulación", "Venc. Ecológico", "Venc. Físico-mecánico", "Inspección Anual", "Permiso IRP", "Permiso IFTA"]
-    : ["Número económico", "Estatus", "Marca", "Modelo", "Año", "Configuración", "Placas US", "VIN", "Operador", "Ubicación", "Doble Estiba", "Thermo", "Apta Médicos", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Inspección anual DOT", "Inspección Anual", "Venc. Fumigación"];
+    ? ["Número económico", "Estatus", "Marca", "Modelo", "Año", "Tipo", "Placas MX", "Placas US", "VIN", "Unidad de negocio", "Gerente de flota", "Operador", "Ubicación", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Venc. Tarjeta Circulación", "Venc. Ecológico", "Venc. Físico-mecánico", "Inspección Anual", "Permiso IRP", "Permiso IFTA"]
+    : ["Número económico", "Estatus", "Marca", "Modelo", "Año", "Tipo", "Placas US", "VIN", "Operador", "Ubicación", "Doble Estiba", "Thermo", "Apta Médicos", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Inspección anual DOT", "Inspección Anual", "Venc. Fumigación"];
   const exportRows = units.map((u) => tipo === "Power Unit"
-    ? [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.configuracion || "—", u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.tarjetaCirculacion || "—", u.ecologico || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.irpVencimiento || "—", u.iftaVencimiento || "—"]
-    : [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.configuracion || "—", u.placasUs || "—", u.vin, u.operador || "—", u.ubicacion || "—", u.dobleEstiba || "No", u.thermo || "No", u.aptaProductosMedicos || "No", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.fumigacionVencimiento || "—"]
+    ? [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.tipo || "—", u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.tarjetaCirculacion || "—", u.ecologico || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.irpVencimiento || "—", u.iftaVencimiento || "—"]
+    : [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.tipo || "—", u.placasUs || "—", u.vin, u.operador || "—", u.ubicacion || "—", u.dobleEstiba || "No", u.thermo || "No", u.aptaProductosMedicos || "No", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.fumigacionVencimiento || "—"]
   );
 
   return (
@@ -3098,7 +3098,7 @@ function categoriasActualizarPara(tipo) {
 function columnasAltaPara(tipo) {
   if (POWER_UNITS.includes(tipo)) {
     return [
-      { header: "Configuración", field: "configuracion" },
+
       ...CAMPOS_SLEEPER_GENERALES,
       ...CAMPOS_SLEEPER_SEGUROS,
       ...CAMPOS_SLEEPER_VENCIMIENTOS,
@@ -3553,7 +3553,6 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
               {POWER_UNITS.includes(unit.tipo) && unit.folioSct && <Detail label="Folio SCT" value={unit.folioSct} />}
               {POWER_UNITS.includes(unit.tipo) && unit.numeroDot && <Detail label="Número DOT" value={unit.numeroDot} />}
               <Detail label="Año" value={unit.anio} />
-              <Detail label="Configuración" value={unit.configuracion || "—"} />
               <Detail label="Unidad de negocio" value={unit.businessUnit || "—"} mono />
               <Detail label="Gerente de flota" value={unit.gerenteFlota || "—"} />
               {unit.tipo === "Dry Van" && (
@@ -3954,7 +3953,7 @@ function MaintenanceTab({ unit, onUpdate }) {
       </div>
 
       <h4 className="section-title">
-        <Disc size={14} /> Llantas ({total} posiciones — {unit.configuracion || "config. no definida"})
+        <Disc size={14} /> Llantas ({total} posiciones — {unit.tipo || "tipo no definido"})
         {costoLlantasTotal > 0 && <span className="mtto-costo-total">Costo acumulado en llantas: {fmtCosto(costoLlantasTotal)}</span>}
       </h4>
 
@@ -4581,7 +4580,7 @@ function EditForm({ form, setForm, onCancel, onSave, existingEconomicos = [] }) 
           </>
         ) : (
           <>
-            <Field label="Configuración"><input className="input" placeholder="Daycab / Sleeper" value={form.configuracion || ""} onChange={set("configuracion")} /></Field>
+
             <Field label="Marca"><input className="input" value={form.marca} onChange={set("marca")} /></Field>
             <Field label="Modelo"><input className="input" value={form.modelo} onChange={set("modelo")} /></Field>
             <Field label="Año"><input className="input" value={form.anio} onChange={set("anio")} /></Field>
@@ -4652,7 +4651,7 @@ function Field({ label, children, full, error }) {
 
 function AddModal({ onClose, onAdd, existingEconomicos = [] }) {
   const [form, setForm] = useState({
-    numeroEconomico: "", tipo: "Sleeper", configuracion: "", marca: "", modelo: "", anio: new Date().getFullYear(),
+    numeroEconomico: "", tipo: "Sleeper", marca: "", modelo: "", anio: new Date().getFullYear(),
     placas: "", placasUs: "", vin: "", businessUnit: "", gerenteFlota: "", estatus: "Activo", ubicacion: "", operador: "",
     seguroUsaAseguradora: "", seguroUsaPoliza: "", seguroUsaVencimiento: "", seguroUsaRadioCobertura: "",
     seguroMxAseguradora: "", seguroMxPoliza: "", seguroMxVencimiento: "",
