@@ -820,7 +820,7 @@ export default function App() {
         .order("id", { ascending: true });
       if (error) throw error;
       if (data && data.length > 0) {
-        setUnits(backfillFromSeed(data.map(rowToUnit)));
+        setUnits(data.map(rowToUnit));
       } else {
         // Tabla vacía (primera conexión): la sembramos con las unidades de ejemplo.
         const { error: seedError } = await supabase.rpc("sync_fleet_units", { payload: SEED_UNITS.map(unitToRow) });
