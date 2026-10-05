@@ -3,7 +3,7 @@ import {
   Search, AlertTriangle, LogOut, Plus, X, MapPin, Wrench,
   ShieldAlert, Clock, Pencil, Trash2, ChevronRight, ChevronDown, User,
   LayoutDashboard, ClipboardList, Bell, Check, Gauge, Disc, ArrowLeft, Fuel,
-  Download, Upload, RefreshCw, Camera,
+  Download, Upload, RefreshCw, Camera, Menu,
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -747,6 +747,18 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [toast, setToast] = useState(null);
   const [operadores, setOperadores] = useState([]);
+  // Menú lateral tipo "drawer" en pantallas chicas (≤900px, ver .sidebar-open en CSS).
+  // Se cierra solo al navegar o al abrir una unidad, con Escape o tocando el fondo.
+  const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => { setNavOpen(false); }, [view, catalogTipo, seguroPais, dieselSeccion, selected]);
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e) => { if (e.key === "Escape") setNavOpen(false); };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prevOverflow; window.removeEventListener("keydown", onKey); };
+  }, [navOpen]);
 
   // Catálogo de Operadores: tabla propia en Supabase (fleet_operadores), independiente de
   // fleet_units -- si esa tabla todavía no existe en tu proyecto, créala con las columnas
@@ -1155,13 +1167,27 @@ export default function App() {
   const canEditarOperadores = tienePermiso(session.role, "operadores.editar");
   const canAprobarSolicitudes = tienePermiso(session.role, "solicitudes.aprobar");
 
+  const alertCountTotal = alerts.filter(a => a.urgency !== "proximo").length + mttoAlerts.length + tireAlerts.length + dieselAlertsPendientes.length;
+
   return (
     <div className="fleet-app">
       <style>{CSS}</style>
+      <header className="mobile-topbar">
+        <button id="mobile-menu-btn" className="icon-btn mobile-menu-btn" onClick={() => setNavOpen(true)} aria-label="Abrir menú" aria-expanded={navOpen}>
+          <Menu size={20} />
+        </button>
+        <img src={LOGO_TECMA} alt="Tecma Transportation Services" className="mobile-topbar-logo" />
+        <button id="mobile-alerts-btn" className="icon-btn mobile-topbar-alerts" onClick={() => setView("alertas")} aria-label="Ver alertas">
+          <Bell size={18} />
+          {!!alertCountTotal && <span className="nav-count">{alertCountTotal}</span>}
+        </button>
+      </header>
       <div className="shell">
+        {navOpen && <div className="sidebar-backdrop" onClick={() => setNavOpen(false)} />}
         <Sidebar
+          open={navOpen} onClose={() => setNavOpen(false)}
           view={view} setView={setView} session={session} onLogout={() => setSession(null)}
-          alertCount={alerts.filter(a => a.urgency !== "proximo").length + mttoAlerts.length + tireAlerts.length + dieselAlertsPendientes.length}
+          alertCount={alertCountTotal}
           catalogoAlertCount={catalogoAlertCount}
           segurosAlertCount={segurosAlertCount}
           dieselAlertCount={dieselAlertsPendientes.length}
@@ -1303,7 +1329,7 @@ function GlobalSearch({ units, onSelectGlobal }) {
   );
 }
 
-function Sidebar({ view, setView, session, onLogout, alertCount, catalogoAlertCount, segurosAlertCount, dieselAlertCount, catalogTipo, setCatalogTipo, seguroPais, setSeguroPais, dieselSeccion, setDieselSeccion, units, onSelectGlobal }) {
+function Sidebar({ open, onClose, view, setView, session, onLogout, alertCount, catalogoAlertCount, segurosAlertCount, dieselAlertCount, catalogTipo, setCatalogTipo, seguroPais, setSeguroPais, dieselSeccion, setDieselSeccion, units, onSelectGlobal }) {
   const [catalogOpen, setCatalogOpen] = useState(view === "catalogo" || view === "operadores");
   const [segurosOpen, setSegurosOpen] = useState(view === "seguros");
   const [dieselOpen, setDieselOpen] = useState(view === "diesel");
@@ -1332,12 +1358,13 @@ function Sidebar({ view, setView, session, onLogout, alertCount, catalogoAlertCo
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
       <div className="brand">
         <div className="brand-stack">
           <img src={LOGO_TECMA} alt="Tecma Transportation Services" className="brand-logo" />
           <span className="brand-sub">Control de flota</span>
         </div>
+        <button id="sidebar-close-btn" className="icon-btn sidebar-close" onClick={onClose} aria-label="Cerrar menú"><X size={18} /></button>
       </div>
       <GlobalSearch units={units} onSelectGlobal={onSelectGlobal} />
       <nav className="nav">
@@ -3478,8 +3505,8 @@ function ActualizarOperadoresModal({ operadores, onClose, onBulkUpdate, onBulkAd
 function PageHeader({ eyebrow, title, action }) {
   return (
     <div className="page-head">
-      <div><div className="eyebrow">{eyebrow}</div><h2>{title}</h2></div>
-      {action}
+      <div className="page-head-title"><div className="eyebrow">{eyebrow}</div><h2>{title}</h2></div>
+      {action && <div className="page-head-actions">{action}</div>}
     </div>
   );
 }
@@ -4691,8 +4718,10 @@ const CSS = `
 .mono{ font-family:'IBM Plex Mono',monospace; }
 
 .shell{ display:flex; min-height:100vh; }
-.sidebar{ width:220px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:20px 14px; position:sticky; top:0; height:100vh; }
-.brand{ display:flex; align-items:center; padding:6px 8px 24px; }
+.sidebar{ width:220px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:20px 14px; position:sticky; top:0; height:100vh; overflow-y:auto; }
+.brand{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 8px 24px; }
+.sidebar-close, .mobile-topbar, .sidebar-backdrop{ display:none; }
+.fleet-app img{ max-width:100%; }
 .brand-stack{ display:flex; flex-direction:column; gap:4px; }
 .brand-logo{ height:38px; width:auto; object-fit:contain; display:block; image-rendering:-webkit-optimize-contrast; }
 .brand-sub{ color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:0.06em; }
@@ -4721,11 +4750,14 @@ const CSS = `
 .user-name{ color:var(--text); font-size:13px; font-weight:600; }
 .user-role{ font-size:11px; }
 
-.main{ flex:1; padding:28px 32px 60px; max-width:1100px; }
+.main{ flex:1; min-width:0; width:100%; padding:28px 32px 60px; max-width:1600px; margin:0 auto; }
 .loading{ color:var(--dim); padding:40px; }
 .page-head{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px; gap:12px; flex-wrap:wrap; }
 .eyebrow{ color:var(--teal); font-size:12px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:4px; }
 .page-head h2{ font-size:24px; color:var(--text); }
+.page-head-title{ min-width:0; }
+.page-head-actions{ display:flex; flex-wrap:wrap; gap:8px; }
+.page-head-actions > div{ flex-wrap:wrap; }
 
 .kpi-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:22px; }
 .kpi-card{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
@@ -4743,7 +4775,8 @@ const CSS = `
 .operator-bu-grid{ grid-template-columns:1fr 1fr; }
 .operator-bu-block h4.operator-list-title{ font-family:inherit; text-transform:none; letter-spacing:normal; font-size:12px; font-weight:600; color:var(--dim); margin-bottom:10px; }
 .panel h3{ font-size:14px; margin-bottom:14px; color:var(--text); }
-.panel-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.panel-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px; flex-wrap:wrap; }
+.panel-head > div{ flex-wrap:wrap; }
 .link-btn{ background:none; border:none; color:var(--teal); font-size:12px; display:flex; align-items:center; gap:2px; cursor:pointer; font-family:inherit; }
 
 .bars{ display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
@@ -4809,7 +4842,7 @@ const CSS = `
 .toolbar{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; align-items:center; }
 .search-box{ display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:9px 12px; flex:1; min-width:220px; color:var(--dim); }
 .search-box input{ background:none; border:none; outline:none; color:var(--text); font-size:13px; width:100%; font-family:inherit; }
-.chip-row{ display:flex; gap:6px; }
+.chip-row{ display:flex; gap:6px; flex-wrap:wrap; }
 .chip{ background:var(--panel); border:1px solid var(--border); color:var(--dim); border-radius:20px; padding:7px 13px; font-size:12px; cursor:pointer; font-family:inherit; }
 .chip-active{ background:var(--teal); color:#fff; border-color:var(--teal); font-weight:600; }
 .select{ background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px 10px; font-size:13px; font-family:inherit; }
@@ -4858,7 +4891,7 @@ const CSS = `
 .vence-top{ display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-bottom:6px; }
 .vence-date{ font-size:13px; font-family:'IBM Plex Mono',monospace; color:var(--text); }
 
-.history-list{ display:flex; flex-direction:column; gap:6px; }
+.history-list{ display:flex; flex-direction:column; gap:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
 .history-row{ display:grid; grid-template-columns:100px 1fr auto; gap:10px; font-size:12px; color:var(--dim); border-bottom:1px solid var(--border); padding-bottom:6px; }
 .history-row-mtto{ grid-template-columns:100px 1fr 90px auto; }
 .history-row-mtto-tipo{ grid-template-columns:88px 84px 1fr 90px auto; }
@@ -4867,7 +4900,7 @@ const CSS = `
 .tipo-tag-reparacion{ background:rgba(28,140,135,0.14); color:var(--teal-dark); }
 .history-row-insp{ grid-template-columns:100px 80px 1fr 80px 150px; }
 .history-row-diesel-general{ grid-template-columns:90px 1fr 90px 80px auto; }
-.history-row-diesel-captura{ grid-template-columns:70px 84px 1fr 130px 90px 90px 100px 90px 90px; align-items:center; }
+.history-row-diesel-captura{ grid-template-columns:70px 84px 1fr 130px 90px 90px 100px 90px 90px; align-items:center; min-width:880px; }
 .history-row-operador{ grid-template-columns:1fr 160px 110px 100px; align-items:center; }
 .history-row-solicitud{ grid-template-columns:90px 1fr 100px 230px; align-items:center; }
 .foto-danio-grid{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
@@ -4919,8 +4952,9 @@ const CSS = `
 .diesel-result-ready{ border-color:rgba(28,140,135,0.5); }
 .diesel-result-value{ font-size:18px; color:var(--teal); font-weight:600; }
 
-.tab-row{ display:flex; gap:6px; margin-bottom:16px; border-bottom:1px solid var(--border); }
-.tab-btn{ display:flex; align-items:center; gap:6px; background:none; border:none; color:var(--dim); padding:9px 4px; margin-right:14px; font-size:13px; cursor:pointer; font-family:inherit; border-bottom:2px solid transparent; }
+.tab-row{ display:flex; gap:6px; margin-bottom:16px; border-bottom:1px solid var(--border); overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+.tab-row::-webkit-scrollbar{ display:none; }
+.tab-btn{ display:flex; align-items:center; gap:6px; background:none; border:none; color:var(--dim); padding:9px 4px; margin-right:14px; font-size:13px; cursor:pointer; font-family:inherit; border-bottom:2px solid transparent; white-space:nowrap; flex-shrink:0; }
 .tab-btn-active{ color:var(--teal); border-bottom-color:var(--teal); }
 
 .maint-odo{ display:flex; justify-content:space-between; align-items:center; background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:18px; gap:12px; flex-wrap:wrap; }
@@ -4974,18 +5008,107 @@ const CSS = `
 .toast-ok{ border-color:rgba(25,135,84,0.4); color:var(--green); }
 .toast-urgente{ border-color:rgba(232,98,44,0.4); color:var(--orange); }
 
-@media (max-width:760px){
-  .shell{ flex-direction:column; }
-  .sidebar{ width:100%; height:auto; position:relative; flex-direction:row; align-items:center; padding:12px 14px; }
-  .brand{ padding:0 12px 0 0; }
-  .nav{ flex-direction:row; flex:1; }
-  .sidebar-footer{ border:none; margin:0; padding:0; display:flex; align-items:center; gap:8px; }
-  .user-chip{ padding:0; }
-  .main{ padding:18px 16px 60px; }
+/* ---------------------------------------------------------------------------
+   Responsive
+   ≥1600px  pantallas grandes: más columnas en tarjetas
+   ≤1100px  laptop chica / tablet horizontal
+   ≤900px   tablet: el sidebar se vuelve drawer + barra superior
+   ≤760px   teléfono: todo a una columna, modales a pantalla completa
+   ≤420px   teléfono chico
+   --------------------------------------------------------------------------- */
+@keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
+
+@media (min-width:1600px){
+  .unit-grid{ grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); }
+}
+
+@media (max-width:1100px){
+  .main{ padding:24px 24px 60px; }
+  .grid-3{ grid-template-columns:repeat(2,1fr); }
+  .grid-2{ grid-template-columns:1fr 1fr; }
+}
+
+@media (max-width:900px){
+  .mobile-topbar{ display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:45; background:var(--panel); border-bottom:1px solid var(--border); padding:10px 14px; padding-top:calc(10px + env(safe-area-inset-top)); }
+  .mobile-menu-btn, .mobile-topbar-alerts{ display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; padding:0; }
+  .mobile-topbar-logo{ height:28px; width:auto; object-fit:contain; }
+  .mobile-topbar-alerts{ margin-left:auto; position:relative; }
+  .mobile-topbar-alerts .nav-count{ position:absolute; top:-6px; right:-6px; margin:0; }
+
+  .shell{ display:block; min-height:calc(100vh - 61px); }
+  .sidebar{ position:fixed; top:0; left:0; bottom:0; height:100%; width:min(300px,86vw); z-index:55; transform:translateX(-105%); transition:transform 0.25s ease, box-shadow 0.25s ease; padding-top:calc(16px + env(safe-area-inset-top)); padding-bottom:calc(16px + env(safe-area-inset-bottom)); }
+  .sidebar-open{ transform:translateX(0); box-shadow:8px 0 32px rgba(0,0,0,0.18); }
+  .sidebar-backdrop{ display:block; position:fixed; inset:0; background:rgba(51,51,51,0.45); z-index:54; animation:fadeIn 0.2s ease; }
+  .sidebar-close{ display:inline-flex; }
+  /* index.css trae reglas viejas que ponen el sidebar en horizontal: se anulan aquí */
+  .sidebar{ flex-direction:column; align-items:stretch; }
+  .nav{ flex-direction:column; flex:1; }
+  .sidebar-footer{ display:block; border-top:1px solid var(--border); padding-top:12px; margin-top:12px; }
+  .user-chip{ padding:6px 8px 12px; }
+  .brand{ padding:4px 4px 18px 8px; }
+  .nav-item{ padding:12px; }
+  .nav-subitem{ padding:10px; }
+
+  .main{ padding:20px 18px 60px; max-width:none; }
   .grid-2{ grid-template-columns:1fr; }
+}
+
+@media (max-width:760px){
+  .main{ padding:16px 14px calc(60px + env(safe-area-inset-bottom)); }
+  .page-head{ align-items:flex-start; margin-bottom:16px; }
+  .page-head h2{ font-size:20px; }
+  .page-head-actions{ width:100%; }
+  .page-head-actions > div{ width:100%; }
+  .page-head-actions .btn{ flex:1 1 auto; justify-content:center; }
+
+  .kpi-row{ grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+  .kpi-card{ padding:12px 14px; }
+  .kpi-n{ font-size:24px; }
+
   .grid-3{ grid-template-columns:1fr; }
-  .kpi-row{ grid-template-columns:1fr 1fr; }
-  .form-grid, .detail-grid, .vence-grid{ grid-template-columns:1fr; }
+  .form-grid, .edit-form .form-grid, .detail-grid, .vence-grid, .operator-bu-grid, .diesel-stats, .mtto-stats{ grid-template-columns:1fr; }
+  .panel{ padding:16px 14px; border-radius:10px; }
+
+  .toolbar{ gap:8px; }
+  .search-box{ flex:1 1 100%; min-width:0; }
+  .toolbar .select{ flex:1 1 140px; min-width:0; }
+  .input, .select, .search-box input, .global-search-box input{ font-size:16px; }
+
+  .unit-grid{ grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
+
+  .alert-row{ grid-template-columns:auto 1fr auto; row-gap:4px; }
+  .alert-row .alert-field, .alert-row .alert-tipo{ grid-column:1 / -1; grid-row:2; }
+  .alert-row-wrap{ flex-direction:column; }
+  .alert-row-action.btn-sm{ width:100%; }
+
+  .bar-row-wide{ grid-template-columns:90px 1fr 72px; gap:8px; }
+  .donut-wrap{ justify-content:center; }
+
+  .history-row-mtto, .doc-row{ min-width:480px; }
+  .history-row-mtto-tipo, .history-row-insp, .history-row-diesel-general, .history-row-operador, .history-row-solicitud{ min-width:620px; }
+
+  .modal-backdrop{ padding:0; align-items:stretch; }
+  .modal, .modal-sm{ max-width:none; min-height:100%; border-radius:0; border:none; padding:18px 16px calc(24px + env(safe-area-inset-bottom)); }
+  .modal-actions{ flex-wrap:wrap; }
+  .modal-actions .btn{ flex:1 1 auto; justify-content:center; }
+
+  .maint-odo{ flex-direction:column; align-items:stretch; }
+  .odo-form{ flex-wrap:wrap; }
+  .odo-form .input{ flex:1 1 140px; width:auto; }
+  .doc-upload .input{ min-width:0; }
+  .doc-upload .select{ flex:1 1 100%; }
+  .diesel-result{ flex-wrap:wrap; gap:6px; }
+  .diesel-meta-edit{ flex-wrap:wrap; }
+
+  .toast{ max-width:calc(100vw - 24px); bottom:calc(16px + env(safe-area-inset-bottom)); }
+}
+
+@media (max-width:420px){
+  .main{ padding:14px 10px calc(60px + env(safe-area-inset-bottom)); }
+  .unit-grid{ grid-template-columns:1fr; }
+  .kpi-n{ font-size:22px; }
+  .page-head h2{ font-size:18px; }
+  .bar-row-wide{ grid-template-columns:72px 1fr 64px; }
 }
 `;
 
