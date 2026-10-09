@@ -1478,10 +1478,27 @@ function Dashboard({ units, alerts, mttoAlerts, tireAlerts, dieselAlerts, setVie
 
   const resumenHeaders = ["Métrica", "Valor"];
   const resumenRows = [
+    ["RESUMEN GENERAL", ""],
     ["Unidades totales", units.length],
     ["Activas", units.filter((u) => u.estatus === "Activo").length],
     ["En taller", units.filter((u) => u.estatus === "En taller").length],
     ["Alertas urgentes", alerts.filter((a) => a.urgency !== "proximo").length],
+    ["", ""],
+    ["POWER UNITS", ""],
+    ["Total Power Units", powerUnits.length],
+    ...puByEstatus.map(({ e, n }) => [`Estatus: ${e}`, n]),
+    ...puByTipo.map(({ t, n }) => [`Tipo: ${t}`, n]),
+    ["", ""],
+    ["REMOLQUES", ""],
+    ["Total Remolques", remolques.length],
+    ...reByEstatus.map(({ e, n }) => [`Estatus: ${e}`, n]),
+    ...reByTipo.map(({ t, n }) => [`Tipo: ${t}`, n]),
+    ["", ""],
+    ["PRÓXIMOS VENCIMIENTOS", ""],
+    ...alerts.map((a) => [`${a.unit.numeroEconomico} - ${a.label}`, a.date ? fmtDate(a.date) : ""]),
+    ["", ""],
+    ["SOLICITUDES DE DIESEL", ""],
+    ...dieselAlerts.map((a) => [`${a.unit.numeroEconomico} - ${a.label}`, a.date ? fmtDate(a.date) : ""]),
   ];
 
   return (
@@ -1633,9 +1650,10 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [units]);
 
+  const formatExportTipo = (t) => t === "Tractor" ? "Sleeper" : (t || "—");
   const exportAllHeaders = ["Número económico", "Tipo", "Estatus", "Marca", "Modelo", "Año", "Placas MX", "Placas US", "VIN", "Unidad de negocio", "Gerente de flota", "Operador", "Ubicación", "Empresa (Legal)", "Empresa (DBA)", "Folio SCT", "Número DOT", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Venc. Tarjeta Circulación", "Venc. Ecológico", "Venc. Físico-mecánico", "Inspección Anual", "Permiso IRP", "Permiso IFTA", "Venc. Fumigación", "Doble Estiba", "Thermo", "Apta Médicos"];
   const exportAllRows = allUnits.map((u) => [
-    u.numeroEconomico, u.tipo || "—", u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—",
+    u.numeroEconomico, formatExportTipo(u.tipo), u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—",
     u.empresaLegalName || "—", u.empresaDbaName || "—", u.folioSct || "—", u.numeroDot || "—",
     u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—",
     u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—",
@@ -1647,8 +1665,8 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
     ? ["Número económico", "Estatus", "Marca", "Modelo", "Año", "Tipo", "Placas MX", "Placas US", "VIN", "Unidad de negocio", "Gerente de flota", "Operador", "Ubicación", "Empresa (Legal)", "Folio SCT", "Número DOT", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Venc. Tarjeta Circulación", "Venc. Ecológico", "Venc. Físico-mecánico", "Inspección Anual", "Permiso IRP", "Permiso IFTA"]
     : ["Número económico", "Estatus", "Marca", "Modelo", "Año", "Tipo", "Placas US", "VIN", "Operador", "Ubicación", "Empresa (Legal)", "Folio SCT", "Número DOT", "Doble Estiba", "Thermo", "Apta Médicos", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Inspección anual DOT", "Inspección Anual", "Venc. Fumigación"];
   const exportRows = units.map((u) => tipo === "Power Unit"
-    ? [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.tipo || "—", u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—", u.empresaLegalName || "—", u.folioSct || "—", u.numeroDot || "—", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.tarjetaCirculacion || "—", u.ecologico || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.irpVencimiento || "—", u.iftaVencimiento || "—"]
-    : [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, u.tipo || "—", u.placasUs || "—", u.vin, u.operador || "—", u.ubicacion || "—", u.empresaLegalName || "—", u.folioSct || "—", u.numeroDot || "—", u.dobleEstiba || "No", u.thermo || "No", u.aptaProductosMedicos || "No", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.fumigacionVencimiento || "—"]
+    ? [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, formatExportTipo(u.tipo), u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—", u.empresaLegalName || "—", u.folioSct || "—", u.numeroDot || "—", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.tarjetaCirculacion || "—", u.ecologico || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.irpVencimiento || "—", u.iftaVencimiento || "—"]
+    : [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, formatExportTipo(u.tipo), u.placasUs || "—", u.vin, u.operador || "—", u.ubicacion || "—", u.empresaLegalName || "—", u.folioSct || "—", u.numeroDot || "—", u.dobleEstiba || "No", u.thermo || "No", u.aptaProductosMedicos || "No", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.fumigacionVencimiento || "—"]
   );
 
   return (
