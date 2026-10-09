@@ -1450,72 +1450,125 @@ function Sidebar({ open, onClose, view, setView, session, onLogout, alertCount, 
 }
 
 function Dashboard({ units, alerts, mttoAlerts, tireAlerts, dieselAlerts, setView, setSelected }) {
-  const byEstatus = ESTATUS.map((e) => ({ e, n: units.filter((u) => u.estatus === e).length }));
-  const byTipo = UI_TABS.map((t) => ({ t, n: units.filter((u) => getUITipo(u.tipo) === t).length }));
-  const maxTipo = Math.max(1, ...byTipo.map((x) => x.n));
+  const powerUnits = units.filter((u) => getUITipo(u.tipo) === "Power Unit");
+  const remolques = units.filter((u) => getUITipo(u.tipo) !== "Power Unit");
+
+  const puByEstatus = ESTATUS.map((e) => ({ e, n: powerUnits.filter((u) => u.estatus === e).length }));
+  const puByTipoMap = {};
+  powerUnits.forEach(u => {
+    const t = u.tipo || "Sin tipo";
+    puByTipoMap[t] = (puByTipoMap[t] || 0) + 1;
+  });
+  const puByTipo = Object.keys(puByTipoMap).map(t => ({ t, n: puByTipoMap[t] })).sort((a, b) => b.n - a.n);
+  const maxPuTipo = Math.max(1, ...puByTipo.map(x => x.n));
+
+  const reByEstatus = ESTATUS.map((e) => ({ e, n: remolques.filter((u) => u.estatus === e).length }));
+  const reByTipoMap = {};
+  remolques.forEach(u => {
+    const t = u.tipo || "Sin tipo";
+    reByTipoMap[t] = (reByTipoMap[t] || 0) + 1;
+  });
+  const reByTipo = Object.keys(reByTipoMap).map(t => ({ t, n: reByTipoMap[t] })).sort((a, b) => b.n - a.n);
+  const maxReTipo = Math.max(1, ...reByTipo.map(x => x.n));
+
   const top = alerts.slice(0, 5);
   const topMtto = mttoAlerts.slice(0, 5);
   const topLlantas = tireAlerts.slice(0, 5);
   const topDiesel = dieselAlerts.slice(0, 5);
+
   const resumenHeaders = ["Métrica", "Valor"];
   const resumenRows = [
     ["Unidades totales", units.length],
     ["Activas", units.filter((u) => u.estatus === "Activo").length],
     ["En taller", units.filter((u) => u.estatus === "En taller").length],
     ["Alertas urgentes", alerts.filter((a) => a.urgency !== "proximo").length],
-    ...byTipo.map(({ t, n }) => [`Unidades — ${t}`, n]),
-    ...byEstatus.map(({ e, n }) => [`Estatus — ${e}`, n]),
   ];
+
   return (
     <div>
       <PageHeader eyebrow="Panel" title="Estado general de la flota" action={<ExportButton headers={resumenHeaders} rows={resumenRows} label="Exportar resumen" fileName="Resumen flota Tecma" />} />
-      <div className="kpi-row">
-        <div className="kpi-card"><div className="kpi-n">{units.length}</div><div className="kpi-l">Unidades totales</div></div>
-        <div className="kpi-card"><div className="kpi-n">{units.filter(u => u.estatus === "Activo").length}</div><div className="kpi-l">Activas</div></div>
-        <div className="kpi-card"><div className="kpi-n">{units.filter(u => u.estatus === "En taller").length}</div><div className="kpi-l">En taller</div></div>
 
-        <div className="kpi-card kpi-card-warn"><div className="kpi-n">{alerts.filter(a => a.urgency !== "proximo").length}</div><div className="kpi-l">Alertas urgentes</div></div>
+      <h2 style={{ marginBottom: 16 }}>Power Units</h2>
+      <div className="kpi-row">
+        <div className="kpi-card"><div className="kpi-n">{powerUnits.length}</div><div className="kpi-l">Power Units (General)</div></div>
+        {puByEstatus.map(({ e, n }) => (
+          <div className="kpi-card" key={e}><div className="kpi-n">{n}</div><div className="kpi-l">{e}</div></div>
+        ))}
       </div>
 
       <div className="grid-2">
         <div className="panel">
-          <h3>Unidades por tipo</h3>
+          <h3>Power Units por tipo</h3>
           <div className="bars">
-            {byTipo.map(({ t, n }) => (
+            {puByTipo.map(({ t, n }) => (
               <div className="bar-row" key={t}>
                 <span className="bar-label">{t}</span>
-                <div className="bar-track"><div className="bar-fill" style={{ width: `${(n / maxTipo) * 100}%` }} /></div>
+                <div className="bar-track"><div className="bar-fill" style={{ width: `${(n / maxPuTipo) * 100}%` }} /></div>
                 <span className="bar-n">{n}</span>
               </div>
             ))}
           </div>
-          <div className="estatus-legend">
-            {byEstatus.map(({ e, n }) => (
+        </div>
+        <div className="panel">
+          <h3>Resumen de estatus (Power Units)</h3>
+          <div className="estatus-legend" style={{ paddingTop: 0, borderTop: "none" }}>
+            {puByEstatus.map(({ e, n }) => (
               <div className="legend-item" key={e}><StatusDot estatus={e} /> {e} <b>{n}</b></div>
             ))}
           </div>
         </div>
+      </div>
 
+      <h2 style={{ marginTop: 32, marginBottom: 16 }}>Remolques</h2>
+      <div className="kpi-row">
+        <div className="kpi-card"><div className="kpi-n">{remolques.length}</div><div className="kpi-l">Remolques (General)</div></div>
+        {reByEstatus.map(({ e, n }) => (
+          <div className="kpi-card" key={e}><div className="kpi-n">{n}</div><div className="kpi-l">{e}</div></div>
+        ))}
+      </div>
+
+      <div className="grid-2">
         <div className="panel">
-          <div className="panel-head">
-            <h3>Próximos vencimientos</h3>
-            <button className="link-btn" onClick={() => setView("alertas")}>Ver todos <ChevronRight size={14} /></button>
+          <h3>Remolques por tipo</h3>
+          <div className="bars">
+            {reByTipo.map(({ t, n }) => (
+              <div className="bar-row" key={t}>
+                <span className="bar-label">{t}</span>
+                <div className="bar-track"><div className="bar-fill" style={{ width: `${(n / maxReTipo) * 100}%` }} /></div>
+                <span className="bar-n">{n}</span>
+              </div>
+            ))}
           </div>
-          {top.length === 0 ? (
-            <div className="empty">No hay vencimientos próximos. Todo al corriente.</div>
-          ) : (
-            <div className="alert-list">
-              {top.map((a, i) => (
-                <button className="alert-row" key={i} onClick={() => setSelected(a.unit)}>
-                  <Badge tone={a.urgency}>{URGENCY_LABEL[a.urgency]}</Badge>
-                  <span className="alert-unit mono">{a.unit.numeroEconomico}</span>
-                  <span className="alert-field">{a.label}</span>
-                  <span className="alert-date">{fmtDate(a.date)}</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
+        <div className="panel">
+          <h3>Resumen de estatus (Remolques)</h3>
+          <div className="estatus-legend" style={{ paddingTop: 0, borderTop: "none" }}>
+            {reByEstatus.map(({ e, n }) => (
+              <div className="legend-item" key={e}><StatusDot estatus={e} /> {e} <b>{n}</b></div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginTop: 32 }}>
+        <div className="panel-head">
+          <h3>Próximos vencimientos</h3>
+          <button className="link-btn" onClick={() => setView("alertas")}>Ver todos <ChevronRight size={14} /></button>
+        </div>
+        {top.length === 0 ? (
+          <div className="empty">No hay vencimientos próximos. Todo al corriente.</div>
+        ) : (
+          <div className="alert-list">
+            {top.map((a, i) => (
+              <button className="alert-row" key={i} onClick={() => setSelected(a.unit)}>
+                <Badge tone={a.urgency}>{URGENCY_LABEL[a.urgency]}</Badge>
+                <span className="alert-unit mono">{a.unit.numeroEconomico}</span>
+                <span className="alert-field">{a.label}</span>
+                <span className="alert-date">{fmtDate(a.date)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
 
