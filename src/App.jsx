@@ -1550,18 +1550,18 @@ function Dashboard({ units, alerts, mttoAlerts, tireAlerts, dieselAlerts, setVie
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--text-light)" }}>
                 <th style={{ padding: "8px 4px", fontWeight: 600 }}>Tipo</th>
-                <th style={{ padding: "8px 4px", fontWeight: 600 }}>Total</th>
-                {activePuEstatus.map(e => <th key={e} style={{ padding: "8px 4px", fontWeight: 600, whiteSpace: "nowrap" }}><StatusDot estatus={e} /> {e}</th>)}
+                <th style={{ padding: "8px 4px", fontWeight: 600, textAlign: "center" }}>Total</th>
+                {activePuEstatus.map(e => <th key={e} style={{ padding: "8px 4px", fontWeight: 600, whiteSpace: "nowrap", textAlign: "center" }}><StatusDot estatus={e} /> {e}</th>)}
               </tr>
             </thead>
             <tbody>
               {puByTipo.map(({ t, n }) => (
                 <tr key={t} style={{ borderBottom: "1px solid var(--border)" }}>
                   <td style={{ padding: "8px 4px", whiteSpace: "nowrap" }}>{t}</td>
-                  <td style={{ padding: "8px 4px" }}><b>{n}</b></td>
+                  <td style={{ padding: "8px 4px", textAlign: "center" }}><b>{n}</b></td>
                   {activePuEstatus.map(e => {
                     const count = powerUnits.filter(u => u.estatus === e && getDashboardTipo(u.tipo) === t).length;
-                    return <td key={e} style={{ padding: "8px 4px", color: count > 0 ? "inherit" : "var(--text-light)" }}>{count > 0 ? count : "-"}</td>;
+                    return <td key={e} style={{ padding: "8px 4px", textAlign: "center", color: count > 0 ? "inherit" : "var(--text-light)" }}>{count > 0 ? count : "-"}</td>;
                   })}
                 </tr>
               ))}
@@ -1597,18 +1597,18 @@ function Dashboard({ units, alerts, mttoAlerts, tireAlerts, dieselAlerts, setVie
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--text-light)" }}>
                 <th style={{ padding: "8px 4px", fontWeight: 600 }}>Tipo</th>
-                <th style={{ padding: "8px 4px", fontWeight: 600 }}>Total</th>
-                {activeReEstatus.map(e => <th key={e} style={{ padding: "8px 4px", fontWeight: 600, whiteSpace: "nowrap" }}><StatusDot estatus={e} /> {e}</th>)}
+                <th style={{ padding: "8px 4px", fontWeight: 600, textAlign: "center" }}>Total</th>
+                {activeReEstatus.map(e => <th key={e} style={{ padding: "8px 4px", fontWeight: 600, whiteSpace: "nowrap", textAlign: "center" }}><StatusDot estatus={e} /> {e}</th>)}
               </tr>
             </thead>
             <tbody>
               {reByTipo.map(({ t, n }) => (
                 <tr key={t} style={{ borderBottom: "1px solid var(--border)" }}>
                   <td style={{ padding: "8px 4px", whiteSpace: "nowrap" }}>{t}</td>
-                  <td style={{ padding: "8px 4px" }}><b>{n}</b></td>
+                  <td style={{ padding: "8px 4px", textAlign: "center" }}><b>{n}</b></td>
                   {activeReEstatus.map(e => {
                     const count = remolques.filter(u => u.estatus === e && getDashboardTipo(u.tipo) === t).length;
-                    return <td key={e} style={{ padding: "8px 4px", color: count > 0 ? "inherit" : "var(--text-light)" }}>{count > 0 ? count : "-"}</td>;
+                    return <td key={e} style={{ padding: "8px 4px", textAlign: "center", color: count > 0 ? "inherit" : "var(--text-light)" }}>{count > 0 ? count : "-"}</td>;
                   })}
                 </tr>
               ))}
