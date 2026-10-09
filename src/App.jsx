@@ -1476,30 +1476,43 @@ function Dashboard({ units, alerts, mttoAlerts, tireAlerts, dieselAlerts, setVie
   const topLlantas = tireAlerts.slice(0, 5);
   const topDiesel = dieselAlerts.slice(0, 5);
 
-  const resumenHeaders = ["Métrica", "Valor"];
-  const resumenRows = [
-    ["RESUMEN GENERAL", ""],
+  const colResumen = [
     ["Unidades totales", units.length],
     ["Activas", units.filter((u) => u.estatus === "Activo").length],
     ["En taller", units.filter((u) => u.estatus === "En taller").length],
     ["Alertas urgentes", alerts.filter((a) => a.urgency !== "proximo").length],
-    ["", ""],
-    ["POWER UNITS", ""],
+  ];
+  const colPU = [
     ["Total Power Units", powerUnits.length],
     ...puByEstatus.map(({ e, n }) => [`Estatus: ${e}`, n]),
-    ...puByTipo.map(({ t, n }) => [`Tipo: ${t}`, n]),
-    ["", ""],
-    ["REMOLQUES", ""],
+    ...puByTipo.map(({ t, n }) => [`Tipo: ${t === "Tractor" ? "Sleeper" : t}`, n]),
+  ];
+  const colRemolques = [
     ["Total Remolques", remolques.length],
     ...reByEstatus.map(({ e, n }) => [`Estatus: ${e}`, n]),
     ...reByTipo.map(({ t, n }) => [`Tipo: ${t}`, n]),
-    ["", ""],
-    ["PRÓXIMOS VENCIMIENTOS", ""],
-    ...alerts.map((a) => [`${a.unit.numeroEconomico} - ${a.label}`, a.date ? fmtDate(a.date) : ""]),
-    ["", ""],
-    ["SOLICITUDES DE DIESEL", ""],
-    ...dieselAlerts.map((a) => [`${a.unit.numeroEconomico} - ${a.label}`, a.date ? fmtDate(a.date) : ""]),
   ];
+  const colVenc = alerts.map((a) => [`${a.unit.numeroEconomico} - ${a.label}`, a.date ? fmtDate(a.date) : ""]);
+  const colDies = dieselAlerts.map((a) => [`${a.unit.numeroEconomico} - ${a.label}`, a.date ? fmtDate(a.date) : ""]);
+
+  const maxRows = Math.max(colResumen.length, colPU.length, colRemolques.length, colVenc.length, colDies.length);
+
+  const resumenHeaders = [
+    "RESUMEN GENERAL", "Valor", "",
+    "POWER UNITS", "Cantidad", "",
+    "REMOLQUES", "Cantidad", "",
+    "PRÓXIMOS VENCIMIENTOS", "Fecha", "",
+    "SOLICITUDES DE DIESEL", "Fecha"
+  ];
+
+  const resumenRows = Array.from({ length: maxRows }, (_, i) => {
+    const rRes = colResumen[i] || ["", ""];
+    const rPU = colPU[i] || ["", ""];
+    const rRem = colRemolques[i] || ["", ""];
+    const rVenc = colVenc[i] || ["", ""];
+    const rDies = colDies[i] || ["", ""];
+    return [...rRes, "", ...rPU, "", ...rRem, "", ...rVenc, "", ...rDies];
+  });
 
   return (
     <div>
