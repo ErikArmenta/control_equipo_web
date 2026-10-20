@@ -4830,13 +4830,15 @@ function EditForm({ form, setForm, onCancel, onSave, existingEconomicos = [] }) 
             <Field label="Aseguradora Seguro MX"><input className="input" value={form.seguroMxAseguradora || ""} onChange={set("seguroMxAseguradora")} /></Field>
             <Field label="Número de póliza Seguro MX"><input className="input mono" value={form.seguroMxPoliza || ""} onChange={set("seguroMxPoliza")} /></Field>
             <Field label="Vencimiento Seguro MX"><input type="date" className="input" value={form.seguroMxVencimiento || ""} onChange={set("seguroMxVencimiento")} /></Field>
-            <DocVencimientoField label="Vencimiento tarjeta circulación" field="tarjetaCirculacion" form={form} setForm={setForm} />
-            <DocVencimientoField label="Vencimiento ecológico" field="ecologico" form={form} setForm={setForm} />
-            <DocVencimientoField label="Vencimiento físico-mecánico" field="fisicomecanico" form={form} setForm={setForm} />
             <Field label="Vencimiento inspección anual"><input type="date" className="input" value={form.inspeccionAnual || ""} onChange={set("inspeccionAnual")} /></Field>
             <Field label="Vencimiento permiso IRP"><input type="date" className="input" value={form.irpVencimiento || ""} onChange={set("irpVencimiento")} /></Field>
             <Field label="Vencimiento permiso IFTA"><input type="date" className="input" value={form.iftaVencimiento || ""} onChange={set("iftaVencimiento")} /></Field>
             <Field label="Meta de diesel (mi/gal)"><input type="number" min="0" step="0.1" className="input" value={form.dieselMeta || ""} onChange={set("dieselMeta")} /></Field>
+            {/* Trámites MX: a todo el ancho para que el selector y la fecha no queden apretados */}
+            <div className="field-full doc-venc-title">Trámites México</div>
+            <DocVencimientoField label="Tarjeta de circulación" field="tarjetaCirculacion" form={form} setForm={setForm} />
+            <DocVencimientoField label="Ecológico" field="ecologico" form={form} setForm={setForm} />
+            <DocVencimientoField label="Físico-mecánico" field="fisicomecanico" form={form} setForm={setForm} />
             <Field label="Notas" full><textarea className="input" rows={2} value={form.notas} onChange={set("notas")} /></Field>
           </>
         )}
@@ -4860,7 +4862,7 @@ function DocVencimientoField({ label, field, form, setForm }) {
     setForm(v === "fecha" ? { ...form, [camel]: "" } : { ...form, [camel]: v, [field]: "" });
   };
   return (
-    <Field label={label}>
+    <Field label={label} full>
       <div className="doc-venc">
         <select className="select doc-venc-modo" value={modo} onChange={cambiarModo}>
           <option value="fecha">Fecha</option>
@@ -5027,10 +5029,12 @@ const CSS = `
 .badge-neutral{ background:rgba(15,23,42,0.06); color:var(--dim); }
 .badge-tramite{ background:rgba(13,110,253,0.10); color:#0b5ed7; }
 .badge-baja{ background:rgba(220,53,69,0.12); color:#b02a37; }
-.doc-venc{ display:flex; gap:8px; align-items:center; }
-.doc-venc-modo{ flex:0 0 132px; }
-.doc-venc .input{ flex:1; min-width:0; }
-.doc-venc-badge{ flex:1; text-align:center; padding:9px 8px; border-radius:8px; font-size:12px; }
+.doc-venc-title{ font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); border-top:1px solid rgba(15,23,42,0.08); padding-top:12px; margin-top:4px; }
+.doc-venc{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.doc-venc-modo{ flex:0 0 170px; }
+.doc-venc .input{ flex:1 1 180px; min-width:0; }
+.doc-venc-badge{ flex:1 1 180px; text-align:center; padding:9px 8px; border-radius:8px; font-size:12px; }
+@media (max-width:480px){ .doc-venc-modo, .doc-venc .input, .doc-venc-badge{ flex:1 1 100%; } }
 .badge-mtto{ background:rgba(232,98,44,0.16); color:var(--orange); }
 
 .empty{ color:var(--dim); font-size:13px; padding:12px 0; }
