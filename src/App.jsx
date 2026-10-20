@@ -343,6 +343,29 @@ function urgencyOf(days) {
   return "ok";
 }
 const URGENCY_LABEL = { vencido: "Vencido", urgente: "Urgente", proximo: "Próximo", ok: "Al corriente" };
+// Trámites que, en vez de una fecha de vencimiento, pueden estar "En trámite" o "Dado de baja".
+// El estatus vive en columnas propias de fleet_units_base (*_estatus, ver control_equipo_doc_estatus.sql):
+// se leen aparte de vw_fleet_units y se guardan con el RPC set_fleet_doc_estatus después de
+// sync_fleet_units, así no hay que tocar la vista ni el RPC existentes.
+// [campo de fecha, campo de estatus en la app, columna en Supabase]
+const DOC_ESTATUS_FIELDS = [
+  ["tarjetaCirculacion", "tarjetaCirculacionEstatus", "tarjeta_circulacion_estatus"],
+  ["ecologico", "ecologicoEstatus", "ecologico_estatus"],
+  ["fisicomecanico", "fisicomecanicoEstatus", "fisicomecanico_estatus"],
+];
+const DOC_ESTATUS_LABEL = { tramite: "En trámite", baja: "Dado de baja" };
+const DOC_ESTATUS_EXPORT = { tramite: "EN TRÁMITE", baja: "BAJA" };
+// Estatus del trámite de una unidad ("" cuando se maneja por fecha o el campo no tiene estatus)
+function docEstatusDe(unit, field) {
+  const def = DOC_ESTATUS_FIELDS.find(([f]) => f === field);
+  return def && unit ? (unit[def[1]] || "") : "";
+}
+// Valor para exportar/listar: la fecha, o "EN TRÁMITE" / "BAJA", o "—"
+function docVencTexto(unit, field) {
+  const est = docEstatusDe(unit, field);
+  if (est) return DOC_ESTATUS_EXPORT[est] || est;
+  return unit[field] || "—";
+}
 const CHECK_FIELDS = [
   { field: "tarjetaCirculacion", label: "Tarjeta circulación" },
   { field: "ecologico", label: "Ecológico" },
@@ -674,6 +697,37 @@ const UNIT_JSON_FIELDS = [
   ["dieselCargas", "diesel_cargas"],
 ];
 
+// Agrega a cada unidad el estatus de sus trámites (columnas *_estatus de fleet_units_base).
+// Si las columnas todavía no existen (SQL sin correr) se regresan las unidades tal cual.
+async function cargarDocEstatus(units) {
+  const cols = DOC_ESTATUS_FIELDS.map(([, , snake]) => snake).join(", ");
+  const { data, error } = await supabase.from("fleet_units_base").select(`id, ${cols}`);
+  if (error) {
+    console.warn("No se pudo leer el estatus de trámites (¿falta correr control_equipo_doc_estatus.sql?):", error);
+    return units;
+  }
+  const byId = new Map((data || []).map((r) => [r.id, r]));
+  return units.map((u) => {
+    const r = byId.get(u.id);
+    const extra = {};
+    DOC_ESTATUS_FIELDS.forEach(([, camel, snake]) => { extra[camel] = (r && r[snake]) || ""; });
+    return { ...u, ...extra };
+  });
+}
+
+// Guarda el estatus de trámites de las unidades indicadas. Si el trámite tiene fecha, el estatus
+// se limpia (la fecha manda). Un error aquí no tumba el guardado principal de la unidad.
+async function guardarDocEstatus(units) {
+  if (!units || units.length === 0) return;
+  const payload = units.map((u) => {
+    const row = { id: u.id };
+    DOC_ESTATUS_FIELDS.forEach(([field, camel, snake]) => { row[snake] = u[field] ? null : (u[camel] || null); });
+    return row;
+  });
+  const { error } = await supabase.rpc("set_fleet_doc_estatus", { payload });
+  if (error) console.warn("No se pudo guardar el estatus de trámites (¿falta correr control_equipo_doc_estatus.sql?):", error);
+}
+
 // Unidad (forma de la app) -> fila lista para insert/upsert en Supabase.
 function unitToRow(unit) {
   const row = { id: unit.id, odometro: odometroActualDe(unit) };
@@ -832,7 +886,7 @@ export default function App() {
         .order("id", { ascending: true });
       if (error) throw error;
       if (data && data.length > 0) {
-        setUnits(data.map(rowToUnit));
+        setUnits(await cargarDocEstatus(data.map(rowToUnit)));
       } else {
         // Tabla vacía (primera conexión): la sembramos con las unidades de ejemplo.
         const { error: seedError } = await supabase.rpc("sync_fleet_units", { payload: SEED_UNITS.map(unitToRow) });
@@ -885,6 +939,7 @@ export default function App() {
         const { error: upsertError } = await supabase
           .rpc("sync_fleet_units", { payload: unitsToSync.map(unitToRow) });
         if (upsertError) throw upsertError;
+        await guardarDocEstatus(unitsToSync);
       }
       showToast(successMsg, successTone);
       loadData();
@@ -1707,7 +1762,7 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
     u.empresaLegalName || "—", u.empresaDbaName || "—", u.folioSct || "—", u.numeroDot || "—",
     u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—",
     u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—",
-    u.tarjetaCirculacion || "—", u.ecologico || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.irpVencimiento || "—", u.iftaVencimiento || "—", u.fumigacionVencimiento || "—",
+    docVencTexto(u, "tarjetaCirculacion"), docVencTexto(u, "ecologico"), docVencTexto(u, "fisicomecanico"), u.inspeccionAnual || "—", u.irpVencimiento || "—", u.iftaVencimiento || "—", u.fumigacionVencimiento || "—",
     u.dobleEstiba || "—", u.thermo || "—", u.aptaProductosMedicos || "—"
   ]);
 
@@ -1715,8 +1770,8 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
     ? ["Número económico", "Estatus", "Marca", "Modelo", "Año", "Tipo", "Placas MX", "Placas US", "VIN", "Unidad de negocio", "Gerente de flota", "Operador", "Ubicación", "Empresa (Legal)", "Folio SCT", "Número DOT", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Venc. Tarjeta Circulación", "Venc. Ecológico", "Venc. Físico-mecánico", "Inspección Anual", "Permiso IRP", "Permiso IFTA"]
     : ["Número económico", "Estatus", "Marca", "Modelo", "Año", "Tipo", "Placas US", "VIN", "Operador", "Ubicación", "Empresa (Legal)", "Folio SCT", "Número DOT", "Doble Estiba", "Thermo", "Apta Médicos", "Seguro USA", "Póliza USA", "Venc. Seguro USA", "Radio Cobertura USA", "Seguro MX", "Póliza MX", "Venc. Seguro MX", "Inspección anual DOT", "Inspección Anual", "Venc. Fumigación"];
   const exportRows = units.map((u) => tipo === "Power Unit"
-    ? [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, formatExportTipo(u.tipo), u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—", u.empresaLegalName || "—", u.folioSct || "—", u.numeroDot || "—", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.tarjetaCirculacion || "—", u.ecologico || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.irpVencimiento || "—", u.iftaVencimiento || "—"]
-    : [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, formatExportTipo(u.tipo), u.placasUs || "—", u.vin, u.operador || "—", u.ubicacion || "—", u.empresaLegalName || "—", u.folioSct || "—", u.numeroDot || "—", u.dobleEstiba || "No", u.thermo || "No", u.aptaProductosMedicos || "No", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", u.fisicomecanico || "—", u.inspeccionAnual || "—", u.fumigacionVencimiento || "—"]
+    ? [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, formatExportTipo(u.tipo), u.placas || "—", u.placasUs || "—", u.vin, u.businessUnit || "—", u.gerenteFlota || "—", u.operador || "—", u.ubicacion || "—", u.empresaLegalName || "—", u.folioSct || "—", u.numeroDot || "—", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", docVencTexto(u, "tarjetaCirculacion"), docVencTexto(u, "ecologico"), docVencTexto(u, "fisicomecanico"), u.inspeccionAnual || "—", u.irpVencimiento || "—", u.iftaVencimiento || "—"]
+    : [u.numeroEconomico, u.estatus, u.marca || "—", u.modelo || "—", u.anio, formatExportTipo(u.tipo), u.placasUs || "—", u.vin, u.operador || "—", u.ubicacion || "—", u.empresaLegalName || "—", u.folioSct || "—", u.numeroDot || "—", u.dobleEstiba || "No", u.thermo || "No", u.aptaProductosMedicos || "No", u.seguroUsaAseguradora || "—", u.seguroUsaPoliza || "—", u.seguroUsaVencimiento || "—", u.seguroUsaRadioCobertura || "—", u.seguroMxAseguradora || "—", u.seguroMxPoliza || "—", u.seguroMxVencimiento || "—", docVencTexto(u, "fisicomecanico"), u.inspeccionAnual || "—", u.fumigacionVencimiento || "—"]
   );
 
   return (
@@ -3785,9 +3840,13 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
                 // registro" en vez de calcular una urgencia sobre una fecha vacía, que antes
                 // se mostraba como "Invalid Date" con un badge verde "Al corriente" engañoso.
                 if (!unit[field]) {
+                  const est = docEstatusDe(unit, field);
                   return (
                     <div className="vence-card" key={field}>
-                      <div className="vence-top"><span>{label}</span><Badge tone="neutral">Sin registro</Badge></div>
+                      <div className="vence-top">
+                        <span>{label}</span>
+                        <Badge tone={est || "neutral"}>{est ? DOC_ESTATUS_LABEL[est] : "Sin registro"}</Badge>
+                      </div>
                       <div className="vence-date">—</div>
                     </div>
                   );
@@ -4771,9 +4830,9 @@ function EditForm({ form, setForm, onCancel, onSave, existingEconomicos = [] }) 
             <Field label="Aseguradora Seguro MX"><input className="input" value={form.seguroMxAseguradora || ""} onChange={set("seguroMxAseguradora")} /></Field>
             <Field label="Número de póliza Seguro MX"><input className="input mono" value={form.seguroMxPoliza || ""} onChange={set("seguroMxPoliza")} /></Field>
             <Field label="Vencimiento Seguro MX"><input type="date" className="input" value={form.seguroMxVencimiento || ""} onChange={set("seguroMxVencimiento")} /></Field>
-            <Field label="Vencimiento tarjeta circulación"><input type="date" className="input" value={form.tarjetaCirculacion || ""} onChange={set("tarjetaCirculacion")} /></Field>
-            <Field label="Vencimiento ecológico"><input type="date" className="input" value={form.ecologico || ""} onChange={set("ecologico")} /></Field>
-            <Field label="Vencimiento físico-mecánico"><input type="date" className="input" value={form.fisicomecanico || ""} onChange={set("fisicomecanico")} /></Field>
+            <DocVencimientoField label="Vencimiento tarjeta circulación" field="tarjetaCirculacion" form={form} setForm={setForm} />
+            <DocVencimientoField label="Vencimiento ecológico" field="ecologico" form={form} setForm={setForm} />
+            <DocVencimientoField label="Vencimiento físico-mecánico" field="fisicomecanico" form={form} setForm={setForm} />
             <Field label="Vencimiento inspección anual"><input type="date" className="input" value={form.inspeccionAnual || ""} onChange={set("inspeccionAnual")} /></Field>
             <Field label="Vencimiento permiso IRP"><input type="date" className="input" value={form.irpVencimiento || ""} onChange={set("irpVencimiento")} /></Field>
             <Field label="Vencimiento permiso IFTA"><input type="date" className="input" value={form.iftaVencimiento || ""} onChange={set("iftaVencimiento")} /></Field>
@@ -4787,6 +4846,34 @@ function EditForm({ form, setForm, onCancel, onSave, existingEconomicos = [] }) 
         <button className="btn btn-primary" disabled={Object.keys(errores).length > 0} onClick={onSave}>Guardar</button>
       </div>
     </div>
+  );
+}
+
+// Vencimiento de un trámite: se captura con fecha, o se marca "En trámite" / "Dar de baja"
+// (en esos dos casos la fecha se limpia; ver DOC_ESTATUS_FIELDS).
+function DocVencimientoField({ label, field, form, setForm }) {
+  const def = DOC_ESTATUS_FIELDS.find(([f]) => f === field);
+  const camel = def[1];
+  const modo = form[camel] || "fecha";
+  const cambiarModo = (e) => {
+    const v = e.target.value;
+    setForm(v === "fecha" ? { ...form, [camel]: "" } : { ...form, [camel]: v, [field]: "" });
+  };
+  return (
+    <Field label={label}>
+      <div className="doc-venc">
+        <select className="select doc-venc-modo" value={modo} onChange={cambiarModo}>
+          <option value="fecha">Fecha</option>
+          <option value="tramite">En trámite</option>
+          <option value="baja">Dar de baja</option>
+        </select>
+        {modo === "fecha" ? (
+          <input type="date" className="input" value={form[field] || ""} onChange={(e) => setForm({ ...form, [field]: e.target.value })} />
+        ) : (
+          <span className={`badge badge-${modo} doc-venc-badge`}>{DOC_ESTATUS_LABEL[modo]}</span>
+        )}
+      </div>
+    </Field>
   );
 }
 
@@ -4938,6 +5025,12 @@ const CSS = `
 .badge-urgente{ background:rgba(232,98,44,0.16); color:var(--orange); }
 .badge-vencido{ background:var(--orange); color:#fff; }
 .badge-neutral{ background:rgba(15,23,42,0.06); color:var(--dim); }
+.badge-tramite{ background:rgba(13,110,253,0.10); color:#0b5ed7; }
+.badge-baja{ background:rgba(220,53,69,0.12); color:#b02a37; }
+.doc-venc{ display:flex; gap:8px; align-items:center; }
+.doc-venc-modo{ flex:0 0 132px; }
+.doc-venc .input{ flex:1; min-width:0; }
+.doc-venc-badge{ flex:1; text-align:center; padding:9px 8px; border-radius:8px; font-size:12px; }
 .badge-mtto{ background:rgba(232,98,44,0.16); color:var(--orange); }
 
 .empty{ color:var(--dim); font-size:13px; padding:12px 0; }
