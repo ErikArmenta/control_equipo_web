@@ -1091,44 +1091,9 @@ export default function App() {
     return list.sort((a, b) => a.days - b.days);
   }, [units]);
 
-  useEffect(() => {
-    const syncAlertsToDB = async () => {
-      if (!session.userId) return;
-      
-      const urgentAlerts = alerts.filter(a => a.urgency === "vencido" || a.urgency === "urgente");
-      if (urgentAlerts.length === 0) return;
-
-      const synced = JSON.parse(localStorage.getItem('synced_alerts') || '{}');
-      let newAlerts = [];
-
-      for (const alert of urgentAlerts) {
-        const refId = `venc_${alert.unit.id}_${alert.field}_${alert.date}`;
-        if (!synced[refId]) {
-          newAlerts.push({
-            user_id: session.userId,
-            title: `Equipo: ${alert.unit.numeroEconomico}`,
-            body: `${alert.label} ${alert.urgency === 'vencido' ? 'está vencido' : 'vence pronto'} (${alert.date})`,
-            type: alert.urgency,
-            reference_id: refId,
-            module: 'Control de Equipo'
-          });
-          synced[refId] = true;
-        }
-      }
-
-      if (newAlerts.length > 0) {
-        const { error } = await supabase.from('notifications').insert(newAlerts);
-        if (!error) {
-          localStorage.setItem('synced_alerts', JSON.stringify(synced));
-        } else {
-          console.error("Error al sincronizar alertas a la BD", error);
-        }
-      }
-    };
-
-    const timer = setTimeout(syncAlertsToDB, 2000);
-    return () => clearTimeout(timer);
-  }, [alerts, session.userId]);
+  // Los avisos de vencimientos ya no se generan desde aquí: el servidor manda un resumen diario
+  // a todos los usuarios (menos drivers) con notify_equipment_expirations() (pg_cron, 7:00 a.m.).
+  // Antes se insertaban solo para quien tenía la app abierta y con un reference_id que la base rechazaba.
 
   const mttoAlerts = useMemo(() => {
     return units
