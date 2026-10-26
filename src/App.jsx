@@ -715,6 +715,38 @@ async function cargarDocEstatus(units) {
   });
 }
 
+// Inspección anual que determina Mantenimiento y datos de taller (columnas de fleet_units_base que
+// la vista vw_fleet_units no trae). Si aún no existen (SQL sin correr) se regresan las unidades tal cual.
+async function cargarInspeccionMantto(units) {
+  const columnasInspeccion = "id, inspeccion_anual, inspeccion_anual_aplica, inspeccion_anual_fecha";
+  let { data, error } = await supabase
+    .from("fleet_units_base")
+    .select(`${columnasInspeccion}, taller_motivo, taller_desde, taller_estimado, taller_por`);
+  if (error) {
+    console.warn("No se pudieron leer los datos de taller (¿falta correr mantenimiento_disponibilidad.sql?):", error);
+    ({ data, error } = await supabase.from("fleet_units_base").select(columnasInspeccion));
+  }
+  if (error) {
+    console.warn("No se pudo leer la inspección anual de Mantenimiento (¿falta correr mantenimiento_inspeccion_anual.sql?):", error);
+    return units;
+  }
+  const byId = new Map((data || []).map((r) => [r.id, r]));
+  return units.map((u) => {
+    const r = byId.get(u.id);
+    if (!r) return u;
+    return {
+      ...u,
+      inspeccionAnual: r.inspeccion_anual || "",
+      inspeccionAnualAplica: r.inspeccion_anual_aplica,
+      inspeccionAnualFecha: r.inspeccion_anual_fecha || "",
+      tallerMotivo: r.taller_motivo || "",
+      tallerDesde: r.taller_desde || "",
+      tallerEstimado: r.taller_estimado || "",
+      tallerPor: r.taller_por || "",
+    };
+  });
+}
+
 // Guarda el estatus de trámites de las unidades indicadas. Si el trámite tiene fecha, el estatus
 // se limpia (la fecha manda). Un error aquí no tumba el guardado principal de la unidad.
 async function guardarDocEstatus(units) {
@@ -728,10 +760,15 @@ async function guardarDocEstatus(units) {
   if (error) console.warn("No se pudo guardar el estatus de trámites (¿falta correr control_equipo_doc_estatus.sql?):", error);
 }
 
+// Inspección anual: la determina Mantenimiento en TTS HUB (Mantenimiento > Inspección anual).
+// Control de Equipo solo la muestra; la base además protege estas columnas de cambios manuales.
+const UNIT_READONLY_COLUMNS = new Set(["inspeccion_anual", "inspeccion_anual_aplica", "inspeccion_anual_fecha"]);
+
 // Unidad (forma de la app) -> fila lista para insert/upsert en Supabase.
 function unitToRow(unit) {
   const row = { id: unit.id, odometro: odometroActualDe(unit) };
   UNIT_SCALAR_FIELDS.forEach(([camel, snake]) => {
+    if (UNIT_READONLY_COLUMNS.has(snake)) return;
     const v = unit[camel];
     row[snake] = v === undefined || v === "" ? null : v;
   });
@@ -752,6 +789,37 @@ function rowToUnit(row) {
     unit[camel] = row[snake] || [];
   });
   return unit;
+}
+
+// Inspección anual tal como la determinó Mantenimiento (solo lectura en Control de Equipo)
+function InspeccionAnualMantto({ unit }) {
+  let texto;
+  if (unit.inspeccionAnualAplica === false) texto = "No le toca";
+  else if (unit.inspeccionAnual) texto = `Vence ${fmtDate(unit.inspeccionAnual)}`;
+  else if (unit.inspeccionAnualAplica === true) texto = "Le toca · sin fecha de inspección";
+  else texto = "Sin definir";
+  return (
+    <div className="input" style={{ display: "flex", flexDirection: "column", gap: 2, background: "transparent", cursor: "default" }}>
+      <span>{texto}{unit.inspeccionAnualFecha ? ` (inspección ${fmtDate(unit.inspeccionAnualFecha)})` : ""}</span>
+      <span style={{ fontSize: 11, opacity: 0.65 }}>Lo determina Mantenimiento (TTS HUB)</span>
+    </div>
+  );
+}
+
+const esEstatusTaller = (estatus) => (estatus || "").startsWith("Taller");
+
+// Datos de taller (motivo, desde cuándo, quién y salida estimada). Los captura Mantenimiento en
+// TTS HUB o Control de Equipo al poner la unidad en taller; el último cambio es el que queda.
+function tallerResumen(unit) {
+  if (!esEstatusTaller(unit.estatus)) return "";
+  const partes = [unit.tallerMotivo || "Sin motivo capturado"];
+  if (unit.tallerDesde) {
+    const dias = Math.max(0, Math.floor((Date.now() - new Date(unit.tallerDesde).getTime()) / 86400000));
+    partes.push(`desde ${new Date(unit.tallerDesde).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })} (${dias} ${dias === 1 ? "día" : "días"})`);
+  }
+  if (unit.tallerEstimado) partes.push(`sale ${fmtDate(unit.tallerEstimado)}`);
+  if (unit.tallerPor) partes.push(unit.tallerPor);
+  return partes.join(" · ");
 }
 
 function Badge({ tone, children, ...props }) {
@@ -886,7 +954,7 @@ export default function App() {
         .order("id", { ascending: true });
       if (error) throw error;
       if (data && data.length > 0) {
-        setUnits(await cargarDocEstatus(data.map(rowToUnit)));
+        setUnits(await cargarInspeccionMantto(await cargarDocEstatus(data.map(rowToUnit))));
       } else {
         // Tabla vacía (primera conexión): la sembramos con las unidades de ejemplo.
         const { error: seedError } = await supabase.rpc("sync_fleet_units", { payload: SEED_UNITS.map(unitToRow) });
@@ -3231,7 +3299,7 @@ const CAMPOS_SLEEPER_VENCIMIENTOS = [
   { header: "Vencimiento tarjeta circulación", field: "tarjetaCirculacion" },
   { header: "Vencimiento ecológico", field: "ecologico" },
   { header: "Vencimiento físico-mecánico", field: "fisicomecanico" },
-      { header: "Vencimiento inspección anual", field: "inspeccionAnual" },
+      // La inspección anual no va en la plantilla: la determina Mantenimiento en TTS HUB
   { header: "Vencimiento IRP", field: "irpVencimiento" },
   { header: "Vencimiento IFTA", field: "iftaVencimiento" },
 ];
@@ -3656,7 +3724,6 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
   const [estatus, setEstatus] = useState(unit.estatus);
   const [ubicacion, setUbicacion] = useState(unit.ubicacion);
   const [operador, setOperador] = useState(unit.operador);
-  const [inspeccionAnual, setInspeccionAnual] = useState(unit.inspeccionAnual || "");
   const canEdit = tienePermiso(role, "catalogo.editarTodo");
   const canEdicionRapida = tienePermiso(role, "catalogo.edicionRapida");
   // El desplegable de operador (catálogo de Operadores) solo aplica a Tractor -- Dry Van y
@@ -3673,7 +3740,28 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
   const showMantenimiento = !hideMaintenance && tienePermiso(role, "mantenimiento.ver");
   const showInspeccion = !hideMaintenance && tienePermiso(role, "inspeccion.ver");
 
-  const saveQuick = () => onUpdate({ estatus, ubicacion, operador, inspeccionAnual });
+  const [tallerMotivo, setTallerMotivo] = useState(unit.tallerMotivo || "");
+  const enTallerAntes = esEstatusTaller(unit.estatus);
+  const enTallerNuevo = esEstatusTaller(estatus);
+
+  const saveQuick = async () => {
+    const motivo = tallerMotivo.trim();
+    const cambiaTaller = enTallerNuevo
+      ? estatus !== unit.estatus || motivo !== (unit.tallerMotivo || "")
+      : enTallerAntes && estatus === "Activo";
+    if (cambiaTaller) {
+      // Mantenimiento ve este cambio (con motivo y quién) en su Dashboard MRO
+      const { error } = await supabase.rpc("fleet_set_taller", {
+        p_unit_id: unit.id,
+        p_estatus: estatus,
+        p_motivo: enTallerNuevo ? motivo : null,
+        p_usuario: sessionNombre || null,
+      });
+      if (error) console.warn("No se pudo guardar el motivo de taller (¿falta correr mantenimiento_disponibilidad.sql?):", error);
+    }
+    const tallerCambios = enTallerNuevo ? { tallerMotivo: motivo } : (enTallerAntes ? { tallerMotivo: "", tallerDesde: "", tallerEstimado: "", tallerPor: "" } : {});
+    onUpdate({ estatus, ubicacion, operador, ...tallerCambios });
+  };
   const saveFull = () => { onUpdate(form); setEditing(false); };
 
   return (
@@ -3712,6 +3800,7 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
         ) : !editing && hideMaintenance ? (
           <div className="detail-grid" style={{ marginBottom: 0 }}>
             <Detail label="Estatus" value={unit.estatus} />
+            {esEstatusTaller(unit.estatus) && <Detail label="Taller" value={tallerResumen(unit)} />}
             <Detail label="Ubicación" value={unit.ubicacion || "—"} />
             <Detail label="Operador asignado" value={unit.operador || "—"} />
           </div>
@@ -3725,6 +3814,7 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
               {POWER_UNITS.includes(unit.tipo) && unit.numeroDot && <Detail label="Número DOT" value={unit.numeroDot} />}
               <Detail label="Año" value={unit.anio} />
               <Detail label="Unidad de negocio" value={unit.businessUnit || "—"} mono />
+              {esEstatusTaller(unit.estatus) && <Detail label="Taller" value={tallerResumen(unit)} />}
               <Detail label="Gerente de flota" value={unit.gerenteFlota || "—"} />
               {unit.tipo === "Dry Van" && (
                 <>
@@ -3747,6 +3837,22 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
                   )}
                 </select>
               </div>
+              {enTallerNuevo && (
+                <div className="field-inline">
+                  <label className="field-label">Motivo de taller</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                    <input
+                      className="input"
+                      value={tallerMotivo}
+                      placeholder="Ej. frenos, llantas, motor"
+                      onChange={(e) => setTallerMotivo(e.target.value)}
+                    />
+                    {enTallerAntes && (
+                      <span style={{ fontSize: 11, opacity: 0.65 }}>{tallerResumen(unit)}</span>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="field-inline">
                 <label className="field-label" style={{ alignSelf: 'flex-start', marginTop: 6 }}>Ubicación</label>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
@@ -3791,7 +3897,7 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
               </div>
               <div className="field-inline">
                 <label className="field-label">Inspección Anual</label>
-                <input type="date" className="input" value={inspeccionAnual} onChange={(e) => setInspeccionAnual(e.target.value)} />
+                <InspeccionAnualMantto unit={unit} />
               </div>
               <button className="btn btn-primary" onClick={saveQuick}>Guardar cambios</button>
             </div>
@@ -3806,11 +3912,12 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
                 // se mostraba como "Invalid Date" con un badge verde "Al corriente" engañoso.
                 if (!unit[field]) {
                   const est = docEstatusDe(unit, field);
+                  const noLeToca = field === "inspeccionAnual" && unit.inspeccionAnualAplica === false;
                   return (
                     <div className="vence-card" key={field}>
                       <div className="vence-top">
                         <span>{label}</span>
-                        <Badge tone={est || "neutral"}>{est ? DOC_ESTATUS_LABEL[est] : "Sin registro"}</Badge>
+                        <Badge tone={est || "neutral"}>{noLeToca ? "No le toca" : est ? DOC_ESTATUS_LABEL[est] : "Sin registro"}</Badge>
                       </div>
                       <div className="vence-date">—</div>
                     </div>
@@ -4795,7 +4902,7 @@ function EditForm({ form, setForm, onCancel, onSave, existingEconomicos = [] }) 
             <Field label="Aseguradora Seguro MX"><input className="input" value={form.seguroMxAseguradora || ""} onChange={set("seguroMxAseguradora")} /></Field>
             <Field label="Número de póliza Seguro MX"><input className="input mono" value={form.seguroMxPoliza || ""} onChange={set("seguroMxPoliza")} /></Field>
             <Field label="Vencimiento Seguro MX"><input type="date" className="input" value={form.seguroMxVencimiento || ""} onChange={set("seguroMxVencimiento")} /></Field>
-            <Field label="Vencimiento inspección anual"><input type="date" className="input" value={form.inspeccionAnual || ""} onChange={set("inspeccionAnual")} /></Field>
+            <Field label="Vencimiento inspección anual"><InspeccionAnualMantto unit={form} /></Field>
             <Field label="Vencimiento permiso IRP"><input type="date" className="input" value={form.irpVencimiento || ""} onChange={set("irpVencimiento")} /></Field>
             <Field label="Vencimiento permiso IFTA"><input type="date" className="input" value={form.iftaVencimiento || ""} onChange={set("iftaVencimiento")} /></Field>
             <Field label="Meta de diesel (mi/gal)"><input type="number" min="0" step="0.1" className="input" value={form.dieselMeta || ""} onChange={set("dieselMeta")} /></Field>
