@@ -731,11 +731,14 @@ async function cargarInspeccionMantto(units) {
     return units;
   }
   const byId = new Map((data || []).map((r) => [r.id, r]));
+  const revisiones = await cargarRevisionesMantto();
   return units.map((u) => {
     const r = byId.get(u.id);
-    if (!r) return u;
+    const revisionMantto = revisiones.get(u.id) || null;
+    if (!r) return { ...u, revisionMantto };
     return {
       ...u,
+      revisionMantto,
       inspeccionAnual: r.inspeccion_anual || "",
       inspeccionAnualAplica: r.inspeccion_anual_aplica,
       inspeccionAnualFecha: r.inspeccion_anual_fecha || "",
@@ -745,6 +748,25 @@ async function cargarInspeccionMantto(units) {
       tallerPor: r.taller_por || "",
     };
   });
+}
+
+// Inspecciones con fallas mecánicas que Mantenimiento aún no decide (mantenimiento_revision_inspecciones.sql).
+// Por unidad: { fallas, detenida } -- detenida = falla de frenos, no sale hasta que Manto la revise.
+async function cargarRevisionesMantto() {
+  const { data, error } = await supabase
+    .from("mantto_revisiones")
+    .select("unit_id, fallas, detenida")
+    .eq("estado", "pendiente");
+  const porUnidad = new Map();
+  if (error) return porUnidad;
+  (data || []).forEach((r) => {
+    const prev = porUnidad.get(r.unit_id) || { fallas: [], detenida: false };
+    porUnidad.set(r.unit_id, {
+      fallas: [...new Set([...prev.fallas, ...(r.fallas || [])])],
+      detenida: prev.detenida || !!r.detenida,
+    });
+  });
+  return porUnidad;
 }
 
 // Guarda el estatus de trámites de las unidades indicadas. Si el trámite tiene fecha, el estatus
@@ -807,6 +829,13 @@ function InspeccionAnualMantto({ unit }) {
 }
 
 const esEstatusTaller = (estatus) => (estatus || "").startsWith("Taller");
+
+// Revisión pendiente de Mantenimiento por la inspección del operador
+function revisionResumen(unit) {
+  const rev = unit.revisionMantto;
+  if (!rev) return "";
+  return `${rev.detenida ? "DETENIDA (frenos)" : "Por revisar"}: ${rev.fallas.join(", ")} · Mantenimiento ya fue avisado`;
+}
 
 // Datos de taller (motivo, desde cuándo, quién y salida estimada). Los captura Mantenimiento en
 // TTS HUB o Control de Equipo al poner la unidad en taller; el último cambio es el que queda.
@@ -1926,6 +1955,11 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
                       <div className="unit-tipo">{POWER_UNITS.includes(u.tipo) ? "Power Unit / " + formatTipo(u.tipo) : formatTipo(u.tipo)}</div>
                       <div className="unit-desc">{u.marca} {u.modelo} · {u.anio}</div>
                       <div className="unit-meta"><StatusDot estatus={u.estatus} /> {u.estatus}</div>
+                      {u.revisionMantto && (
+                        <div className="unit-meta" style={{ color: u.revisionMantto.detenida ? "#c62828" : "#e65100", fontWeight: 600 }}>
+                          <Wrench size={13} /> {u.revisionMantto.detenida ? "Detenida por inspección" : "Por revisar (Manto)"}
+                        </div>
+                      )}
                       {u.ubicacion ? (
                         <div className="unit-meta" style={{ display: "flex", flexWrap: "wrap", gap: "4px", alignItems: "center" }}>
                           <MapPin size={13} />
@@ -3801,6 +3835,7 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
           <div className="detail-grid" style={{ marginBottom: 0 }}>
             <Detail label="Estatus" value={unit.estatus} />
             {esEstatusTaller(unit.estatus) && <Detail label="Taller" value={tallerResumen(unit)} />}
+            {unit.revisionMantto && <Detail label="Mantenimiento" value={revisionResumen(unit)} />}
             <Detail label="Ubicación" value={unit.ubicacion || "—"} />
             <Detail label="Operador asignado" value={unit.operador || "—"} />
           </div>
@@ -3815,6 +3850,7 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
               <Detail label="Año" value={unit.anio} />
               <Detail label="Unidad de negocio" value={unit.businessUnit || "—"} mono />
               {esEstatusTaller(unit.estatus) && <Detail label="Taller" value={tallerResumen(unit)} />}
+              {unit.revisionMantto && <Detail label="Mantenimiento" value={revisionResumen(unit)} />}
               <Detail label="Gerente de flota" value={unit.gerenteFlota || "—"} />
               {unit.tipo === "Dry Van" && (
                 <>
@@ -4423,6 +4459,7 @@ function InspectionTab({ unit, onUpdate, sessionNombre }) {
   // inspección -- ver nota en la función sobre el porqué.
   const [fotosDanio, setFotosDanio] = useState({});
   const [subiendoFoto, setSubiendoFoto] = useState(null);
+  const [guardandoInsp, setGuardandoInsp] = useState(false);
 
   const openForm = () => {
     setOperador(unit.operador || "");
@@ -4459,7 +4496,8 @@ function InspectionTab({ unit, onUpdate, sessionNombre }) {
   const dieselBajo = !isTrailer && NIVEL_DIESEL_ALERTA.includes(nivelDiesel);
   const placas = placasStatusDe(unit);
 
-  const saveInspeccion = () => {
+  const saveInspeccion = async () => {
+    if (guardandoInsp) return;
     const odoVal = isTrailer ? null : parseInt(odometroInput, 10);
     if (!operador.trim()) return;
     if (!isTrailer && !odoVal && odoVal !== 0) return;
@@ -4503,6 +4541,24 @@ function InspectionTab({ unit, onUpdate, sessionNombre }) {
         updates.odometro = odoVal;
       }
     }
+    if (Object.values(items).includes("falla")) {
+      // Si hay fallas mecánicas, Mantenimiento la recibe en su bandeja "Por revisar" (TTS HUB) y se
+      // avisa a Mantenimiento- Admin.; las documentales no van a taller (las filtra la base).
+      setGuardandoInsp(true);
+      const { error: revError } = await supabase.rpc("fleet_reportar_inspeccion", {
+        p_unit_id: unit.id,
+        p_fecha: fecha,
+        p_items: entry.items,
+        p_operador: entry.operador,
+        p_capturado_por: entry.capturadoPor,
+        p_calificacion: calificacion,
+        p_notas: entry.notas,
+        p_fotos: fotos,
+        p_odometro: isTrailer || Number.isNaN(odoVal) ? null : odoVal,
+      });
+      setGuardandoInsp(false);
+      if (revError) console.warn("No se pudo avisar a Mantenimiento (¿falta correr mantenimiento_revision_inspecciones.sql?):", revError);
+    }
     onUpdate(updates);
     setShowForm(false);
     setFotosDanio({});
@@ -4516,7 +4572,10 @@ function InspectionTab({ unit, onUpdate, sessionNombre }) {
       <h4 className="section-title"><Check size={14} /> Inspección diaria (DVIR)</h4>
 
       {ultima && (
-        <div className={`mtto-panel ${!inspeccionEsApta(ultima) || !ultima.placasCompletas || ultimaDieselBajo ? "mtto-panel-pendiente" : ""}`} style={{ marginBottom: 16 }}>
+        <div className={`mtto-panel ${!inspeccionEsApta(ultima) || !ultima.placasCompletas || ultimaDieselBajo || unit.revisionMantto ? "mtto-panel-pendiente" : ""}`} style={{ marginBottom: 16 }}>
+          {unit.revisionMantto && (
+            <div className="mtto-alert"><Wrench size={15} /> {revisionResumen(unit)}</div>
+          )}
           {!inspeccionEsApta(ultima) && (
             <div className="mtto-alert"><AlertTriangle size={15} /> Última inspección: no apta para laborar</div>
           )}
@@ -4654,7 +4713,7 @@ function InspectionTab({ unit, onUpdate, sessionNombre }) {
             <input className="input" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Observaciones…" />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-primary" onClick={saveInspeccion}>Guardar inspección</button>
+            <button className="btn btn-primary" onClick={saveInspeccion} disabled={guardandoInsp}>{guardandoInsp ? "Guardando…" : "Guardar inspección"}</button>
             <button className="btn btn-ghost" onClick={() => setShowForm(false)}>Cancelar</button>
           </div>
         </div>
