@@ -862,6 +862,11 @@ function rowToUnit(row) {
   UNIT_JSON_FIELDS.forEach(([camel, snake]) => {
     unit[camel] = row[snake] || [];
   });
+  // Más reciente primero: TTS HUB también registra inspecciones y lecturas, y la base ya no las
+  // reescribe en el orden de esta app (control_equipo_fase1_inspecciones.sql)
+  const porFechaDesc = (a, b) => new Date(b?.fecha || 0) - new Date(a?.fecha || 0);
+  unit.inspecciones = [...unit.inspecciones].sort(porFechaDesc);
+  unit.odometroHistorial = [...unit.odometroHistorial].sort(porFechaDesc);
   return unit;
 }
 
