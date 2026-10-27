@@ -176,6 +176,32 @@ function validarUnidad(form, existingEconomicos) {
 // para no llenar de datos pesados cada inspección -- una foto de celular de 3-5 MB queda
 // normalmente en 100-300 KB sin que se note pérdida de calidad para ver el daño.
 // ---------------------------------------------------------------------------
+// Sube las fotos de daño de una inspección al bucket inspecciones-fotos y deja solo la liga
+// ({ id, url }). Si una foto no se puede subir (sin red, SQL sin correr) se conserva como antes
+// ({ id, dataUrl }) para no perderla.
+async function subirFotosInspeccion(unitId, fotosPorItem) {
+  const resultado = {};
+  for (const [item, fotos] of Object.entries(fotosPorItem || {})) {
+    resultado[item] = await Promise.all((fotos || []).map(async (f) => {
+      if (!f.dataUrl) return f;
+      try {
+        const blob = await (await fetch(f.dataUrl)).blob();
+        const path = `${unitId}/${Date.now()}-${f.id}.jpg`;
+        const { error } = await supabase.storage
+          .from("inspecciones-fotos")
+          .upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000", upsert: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from("inspecciones-fotos").getPublicUrl(path);
+        return { id: f.id, url: data.publicUrl };
+      } catch (e) {
+        console.warn("No se pudo subir la foto al bucket (¿falta correr mantenimiento_fotos_bucket.sql?):", e);
+        return f;
+      }
+    }));
+  }
+  return resultado;
+}
+
 function comprimirImagen(file, maxAncho = 1280, calidad = 0.75) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -314,8 +340,15 @@ function mantenimientoStatus(unit) {
   // "Reparación" queda en el historial pero no cuenta como servicio programado (los
   // registros sin tipo, de antes de este campo, se tratan como Preventivo).
   const preventivos = historial.filter((m) => (m.tipo || "Preventivo") === "Preventivo");
-  const ultimo = preventivos.length > 0 ? preventivos[0] : null;
   const porFecha = unit.tipo === "Dry Van" || unit.tipo === "Flatbed";
+  // Los preventivos que completa Mantenimiento en TTS HUB (orden de trabajo tipo Preventivo) también
+  // reinician el contador; gana el más reciente entre ese y el registro de aquí.
+  const ultimoLocal = preventivos.length > 0 ? preventivos[0] : null;
+  const pm = unit.preventivoMantto;
+  const pmValido = pm && pm.fecha && (porFecha || pm.odometro != null);
+  const ultimo = pmValido && (!ultimoLocal || new Date(pm.fecha) >= new Date(ultimoLocal.fecha))
+    ? { fecha: pm.fecha, odometro: pm.odometro, tipo: "Preventivo", nota: pm.folio ? `Orden ${pm.folio} (Mantenimiento)` : "Mantenimiento" }
+    : ultimoLocal;
   if (porFecha) {
     if (!ultimo) return { pendiente: false, sinRegistro: true, porFecha, mesesTranscurridos: null, ultimo: null };
     const mesesTranscurridos = (Date.now() - new Date(ultimo.fecha).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
@@ -732,13 +765,16 @@ async function cargarInspeccionMantto(units) {
   }
   const byId = new Map((data || []).map((r) => [r.id, r]));
   const revisiones = await cargarRevisionesMantto();
+  const preventivos = await cargarPreventivosMantto();
   return units.map((u) => {
     const r = byId.get(u.id);
     const revisionMantto = revisiones.get(u.id) || null;
-    if (!r) return { ...u, revisionMantto };
+    const preventivoMantto = preventivos.get(u.id) || null;
+    if (!r) return { ...u, revisionMantto, preventivoMantto };
     return {
       ...u,
       revisionMantto,
+      preventivoMantto,
       inspeccionAnual: r.inspeccion_anual || "",
       inspeccionAnualAplica: r.inspeccion_anual_aplica,
       inspeccionAnualFecha: r.inspeccion_anual_fecha || "",
@@ -748,6 +784,22 @@ async function cargarInspeccionMantto(units) {
       tallerPor: r.taller_por || "",
     };
   });
+}
+
+// Último preventivo por unidad (órdenes tipo Preventivo de Mantenimiento + registros de aquí),
+// vista vw_mantto_preventivos (mantenimiento_programa_mes.sql).
+async function cargarPreventivosMantto() {
+  const porUnidad = new Map();
+  const { data, error } = await supabase
+    .from("vw_mantto_preventivos")
+    .select("unit_id, ultimo_fecha, ultimo_odometro, ultimo_fuente, ultimo_folio")
+    .not("ultimo_fecha", "is", null);
+  if (error) return porUnidad;
+  (data || []).forEach((r) => porUnidad.set(r.unit_id, {
+    // Mediodía para que la fecha (sin hora) no se recorra un día al mostrarla en hora local
+    fecha: `${r.ultimo_fecha}T12:00:00`, odometro: r.ultimo_odometro, fuente: r.ultimo_fuente, folio: r.ultimo_folio,
+  }));
+  return porUnidad;
 }
 
 // Inspecciones con fallas mecánicas que Mantenimiento aún no decide (mantenimiento_revision_inspecciones.sql).
@@ -4454,7 +4506,8 @@ function InspectionTab({ unit, onUpdate, sessionNombre }) {
   const [nivelDiesel, setNivelDiesel] = useState(NIVEL_DIESEL_OPTIONS[0]);
   const [items, setItems] = useState(blank());
   const [notas, setNotas] = useState("");
-  // Fotos de daño por ítem reprobado: { [item]: [{ id, dataUrl }] }. Se comprimen en el
+  // Fotos de daño por ítem reprobado: { [item]: [{ id, dataUrl }] } mientras se captura; al guardar
+  // se suben al bucket inspecciones-fotos y quedan como { id, url }. Se comprimen en el
   // navegador (ver comprimirImagen) antes de guardarse para no llenar de datos pesados cada
   // inspección -- ver nota en la función sobre el porqué.
   const [fotosDanio, setFotosDanio] = useState({});
@@ -4504,9 +4557,11 @@ function InspectionTab({ unit, onUpdate, sessionNombre }) {
     const fecha = new Date().toISOString();
     // Solo se guardan fotos de los ítems que quedaron en falla al momento de guardar -- si el
     // usuario adjuntó una foto y luego volvió a marcar ese ítem como "bien", no se conserva.
-    const fotos = Object.fromEntries(
+    const fotosLocales = Object.fromEntries(
       Object.entries(fotosDanio).filter(([item, arr]) => items[item] === "falla" && arr && arr.length > 0)
     );
+    setGuardandoInsp(true);
+    const fotos = await subirFotosInspeccion(unit.id, fotosLocales);
     const entry = {
       fecha,
       operador: operador.trim(),
@@ -4544,7 +4599,6 @@ function InspectionTab({ unit, onUpdate, sessionNombre }) {
     if (Object.values(items).includes("falla")) {
       // Si hay fallas mecánicas, Mantenimiento la recibe en su bandeja "Por revisar" (TTS HUB) y se
       // avisa a Mantenimiento- Admin.; las documentales no van a taller (las filtra la base).
-      setGuardandoInsp(true);
       const { error: revError } = await supabase.rpc("fleet_reportar_inspeccion", {
         p_unit_id: unit.id,
         p_fecha: fecha,
@@ -4556,9 +4610,9 @@ function InspectionTab({ unit, onUpdate, sessionNombre }) {
         p_fotos: fotos,
         p_odometro: isTrailer || Number.isNaN(odoVal) ? null : odoVal,
       });
-      setGuardandoInsp(false);
       if (revError) console.warn("No se pudo avisar a Mantenimiento (¿falta correr mantenimiento_revision_inspecciones.sql?):", revError);
     }
+    setGuardandoInsp(false);
     onUpdate(updates);
     setShowForm(false);
     setFotosDanio({});
@@ -4675,7 +4729,7 @@ function InspectionTab({ unit, onUpdate, sessionNombre }) {
                     <div className="foto-danio-grid">
                       {fotos.map((f) => (
                         <div className="foto-danio-thumb" key={f.id}>
-                          <img src={f.dataUrl} alt={`Foto de daño — ${item}`} />
+                          <img src={f.url || f.dataUrl} alt={`Foto de daño — ${item}`} />
                           <button type="button" onClick={() => quitarFoto(item, f.id)} title="Quitar foto">
                             <X size={10} />
                           </button>
