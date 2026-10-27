@@ -873,13 +873,17 @@ async function rebaseUnidades(modificadas, originalesPorId) {
     console.warn("No se pudo leer la versión más reciente de las unidades; se guarda como estaba:", error);
     return modificadas;
   }
-  const frescas = new Map(data.map((r) => [r.id, rowToUnit(r)]));
+  // El estatus de trámites ("En trámite" / "Dado de baja") vive en columnas que la vista no trae
+  const frescas = new Map((await cargarDocEstatus(data.map(rowToUnit))).map((u) => [u.id, u]));
   return modificadas.map((u) => {
     const fresca = frescas.get(u.id);
     const original = originalesPorId.get(u.id);
     if (!fresca || !original) return u;
     const out = { ...u };
     UNIT_SCALAR_FIELDS.forEach(([camel]) => {
+      if (u[camel] === original[camel]) out[camel] = fresca[camel];
+    });
+    DOC_ESTATUS_FIELDS.forEach(([, camel]) => {
       if (u[camel] === original[camel]) out[camel] = fresca[camel];
     });
     return out;
