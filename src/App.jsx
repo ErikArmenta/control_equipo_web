@@ -642,6 +642,28 @@ function vidaTone(pct) {
   if (pct <= 60) return "proximo";
   return "ok";
 }
+// Ubicaciones: las mismas que ya existen en la flota (columna ubicacion), sin duplicar por
+// mayúsculas ("West" y "WEST" son la misma; se usa la forma más común). Igual que en TTS HUB.
+function tokensUbicacion(ubicacion) {
+  return (ubicacion || "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+function ubicacionesDeFlota(units) {
+  const grupos = new Map();
+  (units || []).forEach((u) => tokensUbicacion(u.ubicacion).forEach((t) => {
+    const k = t.toLowerCase();
+    if (!grupos.has(k)) grupos.set(k, new Map());
+    const formas = grupos.get(k);
+    formas.set(t, (formas.get(t) || 0) + 1);
+  }));
+  const total = (formas) => [...formas.values()].reduce((a, b) => a + b, 0);
+  return [...grupos.values()]
+    .sort((a, b) => total(b) - total(a))
+    .map((formas) => [...formas.entries()].sort((a, b) => b[1] - a[1])[0][0]);
+}
+function tieneUbicacion(ubicacion, opcion) {
+  return tokensUbicacion(ubicacion).some((t) => t.toLowerCase() === (opcion || "").toLowerCase());
+}
+
 function asignacionOf(u) {
   const op = (u.operador || "").trim().toLowerCase();
   if (!op || op === "-" || op === "sin asignar") return "Sin asignar";
@@ -838,6 +860,32 @@ async function guardarDocEstatus(units) {
 // Control de Equipo solo la muestra; la base además protege estas columnas de cambios manuales.
 const UNIT_READONLY_COLUMNS = new Set(["inspeccion_anual", "inspeccion_anual_aplica", "inspeccion_anual_fecha"]);
 
+// TTS HUB también edita unidades (catálogo, edición rápida). Antes de guardar, cada unidad modificada
+// se rearma sobre su versión más reciente en la base y solo se le aplican los campos que cambiaron
+// en esta pantalla; así un guardado de aquí nunca regresa un cambio hecho en TTS HUB.
+async function rebaseUnidades(modificadas, originalesPorId) {
+  const ids = modificadas.map((u) => u.id).filter((id) => originalesPorId.has(id));
+  if (ids.length === 0) return modificadas;
+  let consulta = supabase.from("vw_fleet_units").select("*");
+  if (ids.length <= 100) consulta = consulta.in("id", ids);
+  const { data, error } = await consulta;
+  if (error || !data) {
+    console.warn("No se pudo leer la versión más reciente de las unidades; se guarda como estaba:", error);
+    return modificadas;
+  }
+  const frescas = new Map(data.map((r) => [r.id, rowToUnit(r)]));
+  return modificadas.map((u) => {
+    const fresca = frescas.get(u.id);
+    const original = originalesPorId.get(u.id);
+    if (!fresca || !original) return u;
+    const out = { ...u };
+    UNIT_SCALAR_FIELDS.forEach(([camel]) => {
+      if (u[camel] === original[camel]) out[camel] = fresca[camel];
+    });
+    return out;
+  });
+}
+
 // Unidad (forma de la app) -> fila lista para insert/upsert en Supabase.
 function unitToRow(unit) {
   const row = { id: unit.id, odometro: odometroActualDe(unit) };
@@ -867,6 +915,7 @@ function rowToUnit(row) {
   const porFechaDesc = (a, b) => new Date(b?.fecha || 0) - new Date(a?.fecha || 0);
   unit.inspecciones = [...unit.inspecciones].sort(porFechaDesc);
   unit.odometroHistorial = [...unit.odometroHistorial].sort(porFechaDesc);
+  unit.mantenimientoHistorial = [...unit.mantenimientoHistorial].sort(porFechaDesc);
   return unit;
 }
 
@@ -1081,8 +1130,8 @@ export default function App() {
     const removedIds = [...prevIds].filter((id) => !nextIds.has(id));
     setUnits(next);
     
-    const unitsToSync = modifiedUnits || next;
-    
+    const unitsToSync = await rebaseUnidades(modifiedUnits || next, new Map(units.map((u) => [u.id, u])));
+        
     try {
       if (removedIds.length > 0) {
         const { error: delError } = await supabase.from("fleet_units_base").delete().in("id", removedIds);
@@ -1306,7 +1355,7 @@ export default function App() {
         if (!mantenimientoStatus(u).pendiente) return false;
       } else if (filterEstatus !== "Todos" && u.estatus !== filterEstatus) return false;
       if (filterBU !== "Todos" && u.businessUnit !== filterBU) return false;
-      if (filterUbicacion !== "Todos" && !(u.ubicacion || "").includes(filterUbicacion)) return false;
+      if (filterUbicacion !== "Todos" && !tieneUbicacion(u.ubicacion, filterUbicacion)) return false;
       if (filterAsignacion !== "Todos" && asignacionOf(u) !== filterAsignacion) return false;
       // Filtros de características Dry Van (doble estiba / thermo / apta para productos médicos):
       // solo tienen efecto dentro del catálogo Dry Van, así que basta con que catalogTipo lo sea
@@ -1947,9 +1996,7 @@ function Catalog({ units, allUnits, total, tipo, query, setQuery, filterEstatus,
           <label style={{ fontSize: "11px", fontWeight: "600", color: "#6b7280", marginLeft: "2px", textTransform: "uppercase" }}>Ubicación</label>
           <select className="select" value={filterUbicacion} onChange={(e) => setFilterUbicacion(e.target.value)}>
             <option value="Todos">Todas</option>
-            <option value="West">West</option>
-            <option value="Central MX">Central MX</option>
-            <option value="Central US">Central US</option>
+            {ubicacionesDeFlota(allUnits).map((ub) => <option key={ub} value={ub}>{ub}</option>)}
           </select>
         </div>
         {tipo === "Dry Van" && (
@@ -3949,8 +3996,9 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
               <div className="field-inline">
                 <label className="field-label" style={{ alignSelf: 'flex-start', marginTop: 6 }}>Ubicación</label>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
-                  {["West", "Central MX", "Central US"].map((opt) => {
-                    const isSelected = (ubicacion || "").includes(opt);
+                  {[...new Set([...ubicacionesDeFlota(allUnits), ...tokensUbicacion(ubicacion)
+                    .filter((t) => !ubicacionesDeFlota(allUnits).some((o) => o.toLowerCase() === t.toLowerCase()))])].map((opt) => {
+                    const isSelected = tieneUbicacion(ubicacion, opt);
                     return (
                       <button
                         key={opt}
@@ -3958,9 +4006,9 @@ function UnitModal({ unit, allUnits, role, sessionNombre, operadores, onClose, o
                         style={{ padding: '4px 10px', fontSize: 12 }}
                         className={`btn ${isSelected ? "btn-primary" : "btn-ghost"}`}
                         onClick={() => {
-                          let current = ubicacion ? ubicacion.split(",").map(s => s.trim()).filter(Boolean) : [];
+                          let current = tokensUbicacion(ubicacion);
                           if (isSelected) {
-                            current = current.filter(c => c !== opt);
+                            current = current.filter(c => c.toLowerCase() !== opt.toLowerCase());
                           } else {
                             current.push(opt);
                           }
